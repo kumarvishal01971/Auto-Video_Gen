@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+<form class="card" method="post" action="/new">
+<h1>Step 1 · Topic brief</h1>
+<p class="muted">Fill this in and the pipeline writes the script and storyboard for your approval.</p>
+<label>Topic *</label><input type="text" name="topic" required placeholder="e.g. Launch of Victoria Fifty-five, Phase 2">
+<div class="grid2">
+<div><label>Objective</label><select name="objective"><option>Awareness</option><option>Leads / enquiries</option><option>Event promotion</option><option>Offer / sale</option><option>Brand trust</option></select></div>
+<div><label>Language</label><select name="language"><option value="hinglish">Hinglish</option><option value="hi">Hindi</option><option value="en">English</option></select></div>
+<div><label>Target audience <span class="hint">(blank = brand default)</span></label><input type="text" name="audience" placeholder="{{ brand.strategy.audience_default }}"></div>
+<div><label>Platforms</label><input type="text" name="platforms" value="Instagram Reels, YouTube Shorts, Facebook"></div>
+</div>
+<label>Key message</label><textarea name="key_message" placeholder="The one thing viewers must remember"></textarea>
+<div class="grid2">
+<div><label>Call to action <span class="hint">(blank = brand default)</span></label><input type="text" name="cta" placeholder="{{ brand.default_cta }}"></div>
+<div><label>Video length (seconds)</label><input type="number" name="duration" value="40" min="20" max="60"></div>
+</div>
+<label>Facts, dates, prices to include <span class="hint">— the AI will use only these, exactly</span></label><textarea name="facts" placeholder="e.g. Site visit on 30 Nov, 10am–5pm. 3 & 4 BHK. RERA no. ..."></textarea>
+<div class="grid2">
+<div><label>Deadline</label><input type="text" name="deadline" placeholder="e.g. 25 Nov"></div>
+<div><label>Requested by</label><input type="text" name="requested_by" placeholder="Name / department"></div>
+</div>
+<p style="margin-top:18px"><button class="btn primary" type="submit">Create video →</button></p>
+</form>
+{% endblock %}

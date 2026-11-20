@@ -1,0 +1,48 @@
+{
+  "_note": "Section A (set up once). Fill this in with the team; the pipeline reads it for every video.",
+  "brand_name": "Prabhatam Group",
+  "website": "www.prabhatamgroup.com",
+  "colors": {
+    "primary": "#0B3D91",
+    "secondary": "#F5A623",
+    "background": "#0E1116",
+    "text": "#FFFFFF"
+  },
+  "fonts": {
+    "_note": "Path to a .ttf on the server. For Hindi use a Devanagari font, e.g. NotoSansDevanagari-Bold.ttf",
+    "heading": "brand/fonts/heading.ttf",
+    "body": "brand/fonts/body.ttf",
+    "fallback": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+  },
+  "logo": "brand/logo.png",
+  "music_dir": "brand/music",
+  "music_volume": 0.12,
+  "visual_style": "cinematic, premium, warm natural light, shallow depth of field, clean modern Indian setting, photorealistic",
+  "tone_guide": {
+    "language_default": "hinglish",
+    "voice": "warm, confident, trustworthy; short punchy sentences",
+    "words_to_avoid": [
+      "guaranteed returns",
+      "best in the world",
+      "cheapest"
+    ],
+    "compliance": "No unverifiable claims. No prices/dates unless given in the brief. No competitor names."
+  },
+  "strategy": {
+    "platforms": [
+      "Instagram Reels",
+      "YouTube Shorts",
+      "Facebook",
+      "YouTube"
+    ],
+    "audience_default": "urban Indian families and professionals, 25-50",
+    "content_pillars": [
+      "projects & milestones",
+      "customer trust",
+      "events & offers",
+      "brand story"
+    ]
+  },
+  "default_cta": "Visit www.prabhatamgroup.com",
+  "subtitle_font": "Noto Sans Devanagari"
+}

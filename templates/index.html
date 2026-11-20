@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block hdr %}<span class="provider">{% for k,v in providers.items() %}{{k}}: <b>{{v}}</b> &nbsp; {% endfor %}</span>{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="15">{% endblock %}
+{% block body %}
+<div class="card">
+<h2>Videos</h2>
+{% if not jobs %}<p class="muted">No videos yet. Click <b>+ New brief</b> to start one.</p>{% else %}
+<table><tr><th>Created</th><th>Topic</th><th>Requested by</th><th>Status</th><th></th></tr>
+{% for j in jobs %}
+<tr><td class="muted">{{ j.id[:8] }} {{ j.id[9:11] }}:{{ j.id[11:13] }}</td>
+<td><a href="/job/{{j.id}}">{{ j.brief.topic }}</a></td><td>{{ j.brief.requested_by }}</td>
+<td>{% set s=j.status %}<span class="badge {{ 'b-wait' if s.startswith('await') else 'b-done' if s=='published' else 'b-fail' if s=='failed' else 'b-q' if s=='queued' else 'b-run' }}">{{ j.status_label }}</span></td>
+<td>{% if s.startswith('await') %}<a class="btn primary" href="/job/{{j.id}}">Review</a>{% endif %}</td></tr>
+{% endfor %}</table>{% endif %}
+</div>
+{% endblock %}
