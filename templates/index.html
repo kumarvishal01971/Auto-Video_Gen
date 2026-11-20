@@ -1,16 +1,76 @@
 {% extends "base.html" %}
-{% block hdr %}<span class="provider">{% for k,v in providers.items() %}{{k}}: <b>{{v}}</b> &nbsp; {% endfor %}</span>{% endblock %}
-{% block head %}<meta http-equiv="refresh" content="15">{% endblock %}
+{% from "_ui.html" import icon, badge %}
+{% block title %}Dashboard{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="20">
+<style>
+.hero{background:#fff;border:1px solid var(--line);border-radius:22px;padding:28px 30px;display:flex;align-items:center;gap:26px;margin-bottom:18px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-80px;top:-90px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(249,115,22,.16),rgba(249,115,22,0) 68%)}
+.hero h1{font-size:30px;line-height:1.15;margin:0 0 8px}.hero h1 span{color:var(--orange-2)}
+.hero p{margin:0 0 16px;color:var(--mute);max-width:560px}
+.hero .flow{margin-left:auto;display:flex;flex-direction:column;gap:8px;z-index:1}
+.hero .flow span{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--navy);background:var(--lav);border-radius:999px;padding:6px 14px 6px 6px}
+.hero .flow b{width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font:700 11px var(--head)}
+.hero .flow span.o b{background:var(--orange);color:var(--navy)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:flex;gap:14px;align-items:center;color:var(--navy)}
+.stat .i{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--lav);color:var(--navy-3)}
+.stat.hot .i{background:var(--orange);color:var(--navy)}
+.stat b{display:block;font:700 26px/1.1 var(--head)}.stat span{color:var(--mute);font-size:13px}
+.cols{display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+.wait{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}.wait:last-child{border:0}
+.wait .g{font-size:12px;color:var(--orange-3);font-weight:600}
+.feed{list-style:none;margin:0;padding:0}.feed li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.feed li:last-child{border:0}.feed .tm{color:var(--mute);font-size:12px;white-space:nowrap;min-width:92px}
+.reels{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:14px}
+.reel{display:block;border-radius:14px;overflow:hidden;background:var(--navy);aspect-ratio:9/16;position:relative}
+.reel img{width:100%;height:100%;object-fit:cover;display:block}
+.reel span{position:absolute;inset:auto 0 0 0;padding:28px 10px 9px;font-size:12.5px;color:#fff;font-weight:600;background:linear-gradient(transparent,rgba(18,15,43,.9))}
+.camp{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.camp:last-child{border:0}
+@media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}.hero .flow{display:none}}
+</style>{% endblock %}
 {% block body %}
-<div class="card">
-<h2>Videos</h2>
-{% if not jobs %}<p class="muted">No videos yet. Click <b>+ New brief</b> to start one.</p>{% else %}
-<table><tr><th>Created</th><th>Topic</th><th>Requested by</th><th>Status</th><th></th></tr>
-{% for j in jobs %}
-<tr><td class="muted">{{ j.id[:8] }} {{ j.id[9:11] }}:{{ j.id[11:13] }}</td>
-<td><a href="/job/{{j.id}}">{{ j.brief.topic }}</a></td><td>{{ j.brief.requested_by }}</td>
-<td>{% set s=j.status %}<span class="badge {{ 'b-wait' if s.startswith('await') else 'b-done' if s=='published' else 'b-fail' if s=='failed' else 'b-q' if s=='queued' else 'b-run' }}">{{ j.status_label }}</span></td>
-<td>{% if s.startswith('await') %}<a class="btn primary" href="/job/{{j.id}}">Review</a>{% endif %}</td></tr>
-{% endfor %}</table>{% endif %}
+<section class="hero">
+ <div style="z-index:1">
+  <span class="eyebrow"><i></i>Video Pilot is live</span>
+  <h1>Promo videos, from <span>brief to Reel</span>.</h1>
+  <p>Write a brief, approve the script, the images and the final cut. Video Pilot handles the AI, voiceover, subtitles and branding.</p>
+  <a class="btn primary" href="/new">{{ icon('new',16) }}Create a new video</a> &nbsp;<a class="btn ghost" href="/library">{{ icon('library',16) }}Open library</a>
+ </div>
+ <div class="flow"><span class="o"><b>1</b>Brief</span><span><b>2</b>Approve script</span><span><b>3</b>Approve images</span><span><b>4</b>Approve final</span><span class="o"><b>✓</b>Published</span></div>
+</section>
+
+<div class="stats">
+ <a class="stat {{ 'hot' if stats.waiting }}" href="/approvals"><div class="i">{{ icon('approvals',22) }}</div><div><b>{{ stats.waiting|length }}</b><span>Waiting for approval</span></div></a>
+ <a class="stat" href="/production"><div class="i">{{ icon('production',22) }}</div><div><b>{{ stats.production|length }}</b><span>In production</span></div></a>
+ <a class="stat" href="/library"><div class="i">{{ icon('library',22) }}</div><div><b>{{ stats.published_month|length }}</b><span>Published this month</span></div></a>
+ <a class="stat" href="/videos"><div class="i">{{ icon('videos',22) }}</div><div><b>{{ stats.total }}</b><span>Total briefs</span></div></a>
+</div>
+
+<div class="cols">
+ <div class="card">
+  <div class="card-head"><h2>Waiting for you</h2><a href="/approvals" class="sm">All approvals →</a></div>
+  {% for j in stats.waiting[:6] %}
+  <div class="wait"><div style="flex:1"><a class="strong" href="/job/{{j.id}}">{{ j.brief.topic }}</a><div class="g">{{ gates[j.status] }} approval</div></div>
+   <span class="chip">{{ campaign_of(j) }}</span><a class="btn sm primary" href="/job/{{j.id}}">Review</a></div>
+  {% else %}<div class="empty">Nothing to approve right now. 🎉</div>{% endfor %}
+ </div>
+ <div class="card">
+  <div class="card-head"><h2>Recent activity</h2><a href="/history" class="sm">Full history →</a></div>
+  <ul class="feed">{% for a in activity %}<li><span class="tm">{{ a.t[:6] }} {{ a.t[7:12] }}</span><span><a href="/job/{{a.job}}" class="strong">{{ a.topic[:38] }}</a> — {{ a.msg[:90] }}</span></li>
+  {% else %}<li class="muted">No activity yet.</li>{% endfor %}</ul>
+ </div>
+</div>
+
+<div class="cols">
+ <div class="card">
+  <div class="card-head"><h2>Latest published</h2><a href="/library" class="sm">Video library →</a></div>
+  {% if recent %}<div class="reels">{% for j in recent %}<a class="reel" href="/job/{{j.id}}"><img src="/files/{{j.id}}/{{j.storyboard.thumbnail}}" alt=""><span>{{ j.brief.topic[:48] }}</span></a>{% endfor %}</div>
+  {% else %}<div class="empty">Approved videos will appear here.</div>{% endif %}
+ </div>
+ <div class="card">
+  <div class="card-head"><h2>Campaigns</h2><a href="/campaigns" class="sm">All campaigns →</a></div>
+  {% for name, js in campaigns %}<div class="camp"><a class="strong" href="/campaigns/{{ name|urlencode }}">{{ name }}</a><span class="muted sm">{{ js|length }} video{{ 's' if js|length != 1 }} · {{ js|selectattr('status','equalto','published')|list|length }} published</span></div>
+  {% else %}<div class="empty">Add a campaign name when you create a video to group them here.</div>{% endfor %}
+ </div>
 </div>
 {% endblock %}

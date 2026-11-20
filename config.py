@@ -26,9 +26,13 @@ for d in (JOBS_DIR, OUTPUT_DIR):
 LLM_PROVIDER = env("LLM_PROVIDER", "mock")          # mock | openai_compat
 LLM_BASE_URL = env("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
 LLM_API_KEY = env("LLM_API_KEY")
-LLM_MODEL = env("LLM_MODEL", "gemini-2.5-flash")
+LLM_MODEL = env("LLM_MODEL", "models/gemini-3.8-flash")
+GROQ_API_KEY = env("GROQ_API_KEY")
+GROQ_BASE_URL = env("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+GROQ_MODEL = env("GROQ_MODEL", "qwen/qwen3.8-27b")
 
-IMAGE_PROVIDER = env("IMAGE_PROVIDER", "placeholder")  # placeholder | pollinations | huggingface | fal
+IMAGE_PROVIDER = env("IMAGE_PROVIDER", "placeholder")  # placeholder | pollinations | cloudflare | huggingface | fal
+IMAGE_FALLBACK = env("IMAGE_FALLBACK")
 HF_TOKEN = env("HF_TOKEN")
 HF_IMAGE_MODEL = env("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
 FAL_KEY = env("FAL_KEY")
@@ -58,3 +62,18 @@ def load_brand() -> dict:
     """Section A inputs: brand kit, tone, strategy. Edit brand/brand.json."""
     with open(BRAND_DIR / "brand.json", encoding="utf-8") as f:
         return json.load(f)
+
+
+def resolve_font(path: str) -> Path:
+    font = Path(path)
+    if not font.is_absolute():
+        font = ROOT / font
+    if font.is_file():
+        return font
+    if os.name == "nt":
+        fonts_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+        for name in ("arialbd.ttf", "arial.ttf"):
+            candidate = fonts_dir / name
+            if candidate.is_file():
+                return candidate
+    raise FileNotFoundError(f"Font file not found: {path}")

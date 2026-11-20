@@ -1,28 +1,39 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, badge, delete_btn %}
+{% block title %}{{ j.brief.topic }}{% endblock %}
 {% block head %}{% if running %}<meta http-equiv="refresh" content="5">{% endif %}
 <style>
-.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.steps span{font-size:12px;padding:3px 9px;border-radius:14px;background:#eef0f3;color:var(--mute)}
-.steps span.done{background:var(--green);color:var(--ink)}.steps span.now{background:var(--accent);color:#fff}
-.gate{border-left:5px solid #e07aa5}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.steps span{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--lav);color:var(--mute)}
+.steps span.done{background:var(--lav-2);color:var(--navy-3)}.steps span.now{background:var(--navy);color:#fff;font-weight:600}
+.card.gate{border-left:5px solid var(--orange)}
 .kf{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
-.kf figure{margin:0;background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:8px}
-.kf img{width:100%;border-radius:6px;display:block}.kf figcaption{font-size:12.5px;margin-top:6px}
-.vids{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}.vids video{border-radius:10px;background:#000}
-details summary{cursor:pointer;color:var(--accent);font-weight:600}
+.kf figure{margin:0;background:var(--lav);border:1px solid var(--line);border-radius:14px;padding:8px}
+.kf img{width:100%;border-radius:10px;display:block}.kf figcaption{font-size:12.5px;margin-top:6px}
+.vids{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}.vids video{border-radius:14px;background:#000}
+details summary{cursor:pointer;color:var(--navy-3);font-weight:600}
 .log{font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--mute);max-height:260px;overflow:auto;white-space:pre-wrap}
 .actions{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.jh{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
 </style>{% endblock %}
 {% block body %}
 {% set order=['scripting','await_script','keyframes','await_keyframes','clips','qc','voice','assembly','await_final','published'] %}
 {% set names=['2 Script','3 Approve','4 Keyframes','5 Approve','6 Clips','7 QC','8 Voice','9 Assembly','10 Approve','11 Published'] %}
 {% set cur = order.index(j.status) if j.status in order else -1 %}
 <div class="card">
-<h1>{{ j.brief.topic }}</h1>
-<span class="badge {{ 'b-wait' if j.status.startswith('await') else 'b-done' if j.status=='published' else 'b-fail' if j.status=='failed' else 'b-run' }}">{{ j.status_label }}</span>
-{% if running %}<span class="muted"> &nbsp;working… this page refreshes itself</span>{% endif %}
+<div class="jh"><div><a href="/campaigns/{{ campaign_of(j)|urlencode }}" class="chip">{{ campaign_of(j) }}</a>
+<h1 style="margin-top:8px">{{ j.brief.topic }}</h1>
+{{ badge(j) }}{% if running %}<span class="muted sm"> &nbsp;working… this page refreshes itself</span>{% endif %}
+<div class="muted sm" style="margin-top:6px">Created {{ created(j) }}{% if j.brief.requested_by %} · by {{ j.brief.requested_by }}{% endif %}{% if j.brief.deadline %} · deadline {{ j.brief.deadline }}{% endif %}</div></div>
+<div style="display:flex;gap:8px"><a class="btn ghost sm" href="/new?src={{j.id}}">{{ icon('copy',14) }}Reuse this brief</a>{% if not j.state.deleted %}{{ delete_btn(j, '/videos', 'Delete') }}{% endif %}</div></div>
 <div class="steps">{% for n in names %}<span class="{{ 'done' if loop.index0 < cur else 'now' if loop.index0 == cur else '' }}">{{ n }}</span>{% endfor %}</div>
 <details style="margin-top:12px"><summary>Brief</summary><table>{% for k,v in j.brief.items() if v %}<tr><th>{{k}}</th><td>{{v}}</td></tr>{% endfor %}</table></details>
 </div>
+
+{% if j.state.deleted %}
+<div class="card" style="border-left:5px solid var(--red);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+<div><b>This video is in Trash</b> <span class="muted sm">— moved {{ j.state.deleted }}{% if j.state.deleted_by %} by {{ j.state.deleted_by }}{% endif %}</span></div>
+<form method="post" action="/job/{{j.id}}/restore"><button class="btn dark sm">{{ icon('restore',14) }}Restore</button></form></div>
+{% endif %}
 
 {% if j.status == 'failed' %}
 <div class="card" style="border-left:5px solid #c62828"><h2>Something failed</h2><p>{{ j.error }}</p>
@@ -31,7 +42,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
 <button class="btn primary">Retry</button></form></div>
 {% endif %}
 
-{% if j.status == 'await_script' and sb %}
+{% if j.status == 'await_script' and sb and not j.state.deleted %}
 <form class="card gate" method="post" action="/job/{{j.id}}/script">
 <h2>Step 3 · Approve script &amp; storyboard</h2>
 <p class="muted">Check message, CTA, facts, names, numbers, language, tone and compliance.</p>
@@ -47,7 +58,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
 </form>
 {% endif %}
 
-{% if j.status == 'await_keyframes' and sb %}
+{% if j.status == 'await_keyframes' and sb and not j.state.deleted %}
 <form class="card gate" method="post" action="/job/{{j.id}}/keyframes">
 <h2>Step 5 · Approve keyframes</h2>
 <p class="muted">Check brand look, accuracy, faces, hands, no garbled text. Tick or add a note to redo a shot. This is the cheapest point to fix things.</p>
@@ -68,7 +79,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
 <p><b>Length:</b> {{ sb.duration_total }} s &nbsp; <b>Caption:</b> {{ sb.caption }} <span class="muted">{{ sb.hashtags|join(' ') }}</span></p>
 {% set flagged = sb.shots|selectattr('clip','none')|list %}
 {% if flagged %}<p style="color:#b5562c">⚠ Shots {{ flagged|map(attribute='id')|join(', ') }} failed the quality check and use an animated still instead.</p>{% endif %}
-{% if j.status == 'await_final' %}
+{% if j.status == 'await_final' and not j.state.deleted %}
 <form method="post" action="/job/{{j.id}}/final">
 <label>If changes are needed, redo from:</label>
 <select name="rerun_from" style="max-width:360px"><option value="assembly">9 · Assembly (re-render only)</option><option value="voice">8 · Voice &amp; subtitles</option><option value="keyframes">4 · Keyframes (new images)</option><option value="script">2 · Script (rewrite)</option></select>

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block head %}<style>.yes{color:var(--green);font-weight:600}.no{color:var(--mute)}</style>{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Settings</h1><p>Which AI services are in use. Change them in the <code>.env</code> file and restart — no code changes needed.</p></div></div>
+<div class="card"><h2>AI engine</h2><table><thead><tr><th>Step</th><th>Provider</th><th>Details</th></tr></thead><tbody>
+{% for s,p,d in rows %}<tr><td class="strong">{{ s }}</td><td><span class="chip">{{ p }}</span></td><td class="muted">{{ d }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="grid2">
+<div class="card"><h2>Keys</h2><p class="muted sm" style="margin-top:-6px">Only shows whether a key is set — keys are never displayed.</p><table><tbody>
+{% for k,v in keys.items() %}<tr><td><code>{{ k }}</code></td><td class="{{ 'yes' if v else 'no' }}">{{ '✔ set' if v else 'not set' }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="card"><h2>Output</h2><table><tbody>
+{% for k,v in formats.items() %}<tr><td class="strong">{{ k|replace('x',':') }}</td><td>{{ v[0] }} × {{ v[1] }}</td></tr>{% endfor %}
+{% for k,v in paths.items() %}<tr><td class="strong">{{ k }}</td><td class="sm"><code>{{ v }}</code></td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

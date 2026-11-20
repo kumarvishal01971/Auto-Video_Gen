@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Activity history{% endblock %}
+{% block head %}<style>
+.tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line)}
+.tl li{position:relative;padding:9px 0 9px 14px}
+.tl li:before{content:"";position:absolute;left:-25px;top:15px;width:10px;height:10px;border-radius:50%;background:var(--lav-line);box-shadow:0 0 0 3px #fff}
+.tl li.ok:before{background:var(--green)}.tl li.rej:before{background:var(--orange)}.tl li.bad:before{background:var(--red)}
+.tl .tm{font-size:12px;color:var(--mute)}.tl .m{font-size:14px}
+</style>{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Activity history</h1><p>Every step and decision across all videos — who approved, rejected or requested changes, and when.</p></div></div>
+<div class="card">
+<form class="filters" method="get"><input type="search" name="q" value="{{ q }}" placeholder="Filter: approved, rejected, a topic, a person…" style="flex:1"><button class="btn dark">Filter</button>{% if q %}<a class="btn ghost" href="/history">Clear</a>{% endif %}</form>
+{% if items %}<ul class="tl">{% for a in items %}
+<li class="{{ 'ok' if '✔' in a.msg else 'rej' if ('✘' in a.msg or '↺' in a.msg or '⚠' in a.msg) else 'bad' if 'Failed' in a.msg }}">
+<div class="tm">{{ a.t }} · <a href="/job/{{a.job}}">{{ a.topic }}</a></div><div class="m">{{ a.msg }}</div></li>{% endfor %}</ul>
+{% else %}<div class="empty">No activity yet.</div>{% endif %}
+</div>
+{% endblock %}

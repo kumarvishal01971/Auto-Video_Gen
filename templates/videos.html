@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, video_table %}
+{% block title %}{{ title }}{% endblock %}
+{% block head %}{% if refresh %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block body %}
+<div class="page-head"><div>{% if campaign_page %}<a href="/campaigns" class="sm">← Campaigns</a>{% endif %}<h1>{{ title }}</h1><p>{{ subtitle }}</p></div>
+{% if campaign_page %}<div style="display:flex;gap:10px"><a class="btn primary" href="/new?campaign={{ campaign_page|urlencode }}">{{ icon('new',16) }}New video in this campaign</a>
+<form method="post" action="/campaigns/{{ campaign_page|urlencode }}/delete" onsubmit="return confirm('Delete this campaign? All {{ rows|length }} video(s) in it move to Trash, where you can restore them.')"><button class="btn ghost danger">{{ icon('trash',16) }}Delete campaign</button></form></div>{% endif %}</div>
+<div class="card">
+{% if filters %}
+<form class="filters" method="get">
+ <input type="search" name="q" value="{{ q }}" placeholder="Search topic, person, campaign…" style="flex:1">
+ <select name="status"><option value="">All statuses</option>{% for k,v in statuses.items() %}<option value="{{k}}" {{ 'selected' if status==k }}>{{v}}</option>{% endfor %}</select>
+ <select name="campaign"><option value="">All campaigns</option>{% for c in campaign_names %}<option {{ 'selected' if campaign==c }}>{{c}}</option>{% endfor %}</select>
+ <button class="btn dark">Filter</button>{% if q or status or campaign %}<a class="btn ghost" href="/videos">Clear</a>{% endif %}
+</form>{% endif %}
+{{ video_table(rows, created, campaign_of, "No videos match." if filters else "Nothing here right now.", request.url.path ~ ('?' ~ request.url.query if request.url.query else '')) }}
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}Campaigns{% endblock %}
+{% block head %}<style>
+.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.cc{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;gap:14px;color:var(--navy);position:relative}
+.cc .del{position:absolute;right:12px;top:12px}
+.cc:hover{border-color:var(--orange);color:var(--navy)}
+.cc .p{width:62px;height:86px;border-radius:11px;background:var(--navy);flex:none;overflow:hidden;display:grid;place-items:center;color:var(--orange)}
+.cc .p img{width:100%;height:100%;object-fit:cover}
+.cc h3{margin:0 0 6px;font-size:16px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}.pills span{font-size:12px;border-radius:999px;padding:2px 9px;background:var(--lav)}
+.pills .w{background:var(--orange-t);color:var(--orange-3)}.pills .d{background:var(--green-t);color:var(--green)}
+</style>{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Campaigns</h1><p>Videos grouped by the campaign name given in the brief. Add one when creating a video.</p></div>
+<a class="btn primary" href="/new">{{ icon('new',16) }}New video</a></div>
+{% if cards %}<div class="cg">
+{% for c in cards %}<div class="cc"><a href="/campaigns/{{ c.name|urlencode }}" style="display:flex;gap:14px;color:inherit;flex:1">
+<div class="p">{% if c.thumb %}<img src="/files/{{c.thumb.id}}/{{c.thumb.storyboard.thumbnail}}" alt="">{% else %}{{ icon('campaigns',26) }}{% endif %}</div>
+<div><h3>{{ c.name }}</h3><div class="muted sm" style="margin-bottom:8px">{{ c.total }} video{{ 's' if c.total != 1 }}</div>
+<div class="pills"><span class="d">{{ c.published }} published</span>{% if c.waiting %}<span class="w">{{ c.waiting }} to approve</span>{% endif %}{% if c.working %}<span>{{ c.working }} in production</span>{% endif %}</div></div></a>
+<form class="del" method="post" action="/campaigns/{{ c.name|urlencode }}/delete" data-t="{{ c.name }}" data-n="{{ c.total }}" onsubmit="return confirm('Delete campaign “' + this.dataset.t + '”?\nIts ' + this.dataset.n + ' video(s) move to Trash, where you can restore them.')"><button class="btn sm ghost danger" title="Delete campaign">{{ icon('trash',14) }}</button></form>
+</div>{% endfor %}</div>
+{% else %}<div class="empty">No campaigns yet.</div>{% endif %}
+{% endblock %}

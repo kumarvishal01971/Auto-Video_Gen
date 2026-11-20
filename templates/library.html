@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, delete_btn %}
+{% block title %}Video library{% endblock %}
+{% block head %}<style>
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.vc{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+.vc .poster{position:relative;aspect-ratio:9/14;background:var(--navy);display:block;overflow:hidden}
+.vc .poster img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}.vc:hover .poster img{transform:scale(1.03)}
+.vc .poster .dur{position:absolute;right:8px;bottom:8px;background:rgba(18,15,43,.85);color:#fff;border-radius:999px;padding:2px 9px;font-size:12px}
+.vc .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.vc .body b{font-size:14px;line-height:1.35}
+.vc .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+</style>{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Video library</h1><p>Every approved, published video, ready to download and post.</p></div></div>
+<form class="filters" method="get">
+ <input type="search" name="q" value="{{ q }}" placeholder="Search published videos…" style="flex:1">
+ <select name="campaign"><option value="">All campaigns</option>{% for c in campaign_names %}<option {{ 'selected' if campaign==c }}>{{c}}</option>{% endfor %}</select>
+ <button class="btn dark">Filter</button>{% if q or campaign %}<a class="btn ghost" href="/library">Clear</a>{% endif %}
+</form>
+{% if rows %}<div class="lib">
+{% for j in rows %}{% set sb = j.storyboard %}
+<div class="vc">
+ <a class="poster" href="/job/{{j.id}}"><img src="/files/{{j.id}}/{{sb.thumbnail}}" alt="">{% if sb.duration_total %}<span class="dur">{{ sb.duration_total|round|int }}s</span>{% endif %}</a>
+ <div class="body"><b>{{ j.brief.topic }}</b>
+  <span class="sm muted">{{ created(j)[:10] }} · {{ j.brief.requested_by or 'team' }}</span>
+  <span><a class="chip" href="/campaigns/{{ campaign_of(j)|urlencode }}">{{ campaign_of(j) }}</a></span>
+  <div class="acts">{% for name, rel in sb.outputs.items() %}<a class="btn sm {{ 'primary' if loop.first else 'ghost' }}" href="/files/{{j.id}}/{{rel}}" download>{{ icon('download',14) }}{{ name|replace('x',':') }}</a>{% endfor %}
+  <a class="btn sm ghost" href="/new?src={{j.id}}" title="New video from this brief">{{ icon('copy',14) }}Reuse</a>{{ delete_btn(j, '/library') }}</div>
+ </div>
+</div>{% endfor %}
+</div>{% else %}<div class="empty">No published videos yet. Approved videos land here automatically.</div>{% endif %}
+{% endblock %}

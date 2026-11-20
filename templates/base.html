@@ -1,27 +1,141 @@
-<!DOCTYPE html>
+{% from "_ui.html" import icon %}<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}Promo Video Pipeline{% endblock %}</title>
+<title>{% block title %}{{ app_name }}{% endblock %} · Udhaar Box</title>
+<link rel="icon" href="/static/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
 {% block head %}{% endblock %}
 <style>
-:root{--ink:#1f2328;--mute:#5b6370;--line:#e3e6ea;--bg:#f6f7f9;--blue:#d6e6fb;--peach:#fde3cf;--pink:#f9d5e3;--green:#d8f0de;--red:#fbe0e0;--accent:#0b3d91}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:16px}
-header a.brand{font-weight:700;color:var(--ink);text-decoration:none;font-size:17px}
-main{max-width:1180px;margin:24px auto;padding:0 20px}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px}
-h1{font-size:24px;margin:0 0 6px}h2{font-size:18px;margin:0 0 12px}
-.btn{display:inline-block;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}
-.btn.primary{background:var(--accent);color:#fff}.btn.ok{background:#1f883d;color:#fff}.btn.warn{background:#fff;color:#b5562c;border:1.5px solid #b5562c}
-.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12.5px;font-weight:600}
-.b-run{background:var(--blue)}.b-wait{background:var(--pink)}.b-done{background:var(--green)}.b-fail{background:var(--red)}.b-q{background:#eee}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
-th{font-size:12.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.03em}
-input[type=text],input[type=number],select,textarea{width:100%;padding:8px 10px;border:1px solid #cfd4da;border-radius:8px;font:inherit;background:#fff}
-textarea{min-height:70px}label{font-weight:600;font-size:13.5px;display:block;margin:10px 0 4px}
+/* Palette taken from udhaarbox.com */
+:root{--navy:#1B1740;--navy-2:#2A2460;--navy-3:#3D3580;--deep:#120F2B;--lav:#F4F3FA;--lav-2:#ECEAF8;--lav-line:#CBC7E8;
+--line:#E4E2F2;--orange:#F97316;--orange-2:#EA580C;--orange-3:#C2410C;--orange-t:#FFF1E6;--mute:#6A6787;--white:#fff;
+--green:#1E7A3C;--green-t:#E7F6EC;--red:#B42318;--red-t:#FDECEC;--side:248px;--top:66px;
+--head:Sora,"IBM Plex Sans",system-ui,sans-serif;--body:"IBM Plex Sans",system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+*{box-sizing:border-box}html,body{margin:0}
+body{font:15px/1.55 var(--body);color:var(--navy);background:var(--lav)}
+a{color:var(--navy-3);text-decoration:none}a:hover{color:var(--orange-2)}
+h1,h2,h3{font-family:var(--head);color:var(--navy);letter-spacing:-.01em}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:0 0 14px}h3{font-size:15px;margin:0 0 8px}
+.ic{flex:none;display:block}
+
+/* ---------- top bar ---------- */
+.top{position:fixed;inset:0 0 auto 0;height:var(--top);background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+ border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 22px;z-index:20}
+.logo{display:flex;align-items:center;gap:11px;min-width:calc(var(--side) - 22px)}
+.logo img{width:38px;height:38px;border-radius:10px}
+.logo b{font:700 19px/1 var(--head);color:var(--navy);display:block}
+.logo small{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--mute);margin-top:3px}
+.logo small i{width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;background:var(--lav);border:1px solid var(--line);
+ border-radius:999px;padding:0 14px;height:40px;color:var(--mute)}
+.search input[type=search]{border:0;background:transparent;outline:0;font:inherit;color:var(--navy);width:100%;padding:0;box-shadow:none;border-radius:0}
+.search:focus-within{border-color:var(--navy-3);background:#fff}
+.clock{margin-left:auto;display:flex;align-items:center;gap:9px;color:var(--navy);padding:6px 14px;border-radius:999px;background:var(--lav)}
+.clock .t{font:600 15px/1 var(--head);font-variant-numeric:tabular-nums}.clock .d{font-size:12px;color:var(--mute);line-height:1.2}
+.menu-btn{display:none;background:none;border:0;color:var(--navy);cursor:pointer;padding:6px}
+
+/* ---------- sidebar ---------- */
+.side{position:fixed;top:var(--top);bottom:0;left:0;width:var(--side);background:var(--navy);color:#DCD9F2;
+ padding:18px 14px 14px;overflow-y:auto;display:flex;flex-direction:column;z-index:15}
+.side .sec{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#8F8AB8;margin:16px 10px 6px;font-weight:600}
+.side .sec:first-child{margin-top:0}
+.side a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:#DCD9F2;font-weight:500;font-size:14.5px;position:relative}
+.side a:hover{background:var(--navy-2);color:#fff}
+.side a.on{background:var(--navy-2);color:#fff}
+.side a.on:before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:4px;border-radius:0 4px 4px 0;background:var(--orange)}
+.side a.on .ic{color:var(--orange)}
+.side .count{margin-left:auto;min-width:22px;height:20px;padding:0 7px;border-radius:999px;font-size:11.5px;font-weight:700;display:grid;place-items:center}
+.count.hot{background:var(--orange);color:var(--navy)}.count.cool{background:var(--navy-3);color:#fff}.count.bad{background:#7A1F2B;color:#fff}
+.side .cta{margin:4px 0 6px;justify-content:center;background:var(--orange);color:var(--navy);font-weight:700;border-radius:999px}
+.side .cta:hover{background:var(--orange-2);color:var(--navy)}
+.engine{margin-top:auto;background:var(--deep);border-radius:12px;padding:12px 14px;font-size:12px;color:#A9A4CF}
+.engine b{color:#fff;font-weight:600}.engine div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.engine .h{color:#8F8AB8;text-transform:uppercase;letter-spacing:.12em;font-size:10px;margin-bottom:4px;display:block}
+
+/* ---------- main ---------- */
+main{margin:var(--top) 0 0 var(--side);padding:28px 32px 40px;min-height:calc(100vh - var(--top))}
+.wrap{max-width:1200px;margin:0 auto}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.page-head p{margin:2px 0 0;color:var(--mute)}
+.eyebrow{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;
+ padding:3px 11px;font-size:12px;color:var(--navy);font-weight:500;margin-bottom:8px}.eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px 22px;margin-bottom:18px;box-shadow:0 1px 2px rgba(27,23,64,.04)}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.card-head h2{margin:0}
+.btn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:999px;padding:10px 20px;font:600 14px/1 var(--body);cursor:pointer;
+ text-decoration:none;transition:background .15s,transform .05s;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--orange);color:var(--navy)}.btn.primary:hover{background:var(--orange-2);color:var(--navy)}
+.btn.ok{background:var(--orange);color:var(--navy)}.btn.ok:hover{background:var(--orange-2)}
+.btn.dark{background:var(--navy);color:#fff}.btn.dark:hover{background:var(--navy-2);color:#fff}
+.btn.warn,.btn.ghost{background:#fff;color:var(--navy);box-shadow:inset 0 0 0 1.5px var(--lav-line)}.btn.warn:hover,.btn.ghost:hover{box-shadow:inset 0 0 0 1.5px var(--navy-3);color:var(--navy)}
+.btn.sm{padding:7px 14px;font-size:13px}
+form.inline{display:inline}.btn.danger{color:var(--red)}.btn.danger:hover{box-shadow:inset 0 0 0 1.5px var(--red);color:var(--red);background:var(--red-t)}
+.btn.sm.ghost.danger{padding:7px 10px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.b-run{background:var(--lav-2);color:var(--navy-3)}.b-wait{background:var(--orange-t);color:var(--orange-3)}
+.b-done{background:var(--green-t);color:var(--green)}.b-fail{background:var(--red-t);color:var(--red)}.b-q{background:#F0F0F4;color:#666}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--navy-3);animation:p 1.2s infinite}
+@keyframes p{50%{opacity:.25}}
+.chip{display:inline-block;background:var(--lav);border:1px solid var(--line);color:var(--navy);border-radius:999px;padding:2px 10px;font-size:12.5px}
+.muted{color:var(--mute)}.sm{font-size:12.5px}.strong{font-weight:600;color:var(--navy)}.nowrap{white-space:nowrap}.right{text-align:right}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+th{font-size:11.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;font-weight:600;background:var(--lav)}
+th:first-child{border-radius:10px 0 0 10px}th:last-child{border-radius:0 10px 10px 0}
+table.list tbody tr{cursor:pointer}table.list tbody tr:hover td{background:#FAFAFE}
+.table-wrap{overflow-x:auto}
+.t-thumb{width:52px}.t-thumb img,.t-thumb .ph{width:40px;height:56px;object-fit:cover;border-radius:8px;display:grid;place-items:center;background:var(--navy);color:#fff;font:700 12px var(--head)}
+input[type=text],input[type=number],input[type=search],select,textarea{width:100%;padding:10px 13px;border:1px solid var(--lav-line);border-radius:12px;font:inherit;background:#fff;color:var(--navy)}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(61,53,128,.15);border-color:var(--navy-3)}
+textarea{min-height:76px;resize:vertical}label{font-weight:600;font-size:13.5px;display:block;margin:12px 0 5px}
 .hint{color:var(--mute);font-size:12.5px;font-weight:400}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.muted{color:var(--mute)}
-.provider{font-size:12px;color:var(--mute);margin-left:auto}
-@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.empty{padding:30px;text-align:center;color:var(--mute);background:var(--lav);border-radius:14px;border:1px dashed var(--lav-line)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.filters>*{width:auto;min-width:160px}
+footer.foot{color:var(--mute);font-size:12px;text-align:center;margin-top:26px}
+
+@media(max-width:980px){
+ .side{transform:translateX(-100%);transition:transform .2s}.side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.3)}
+ main{margin-left:0;padding:22px 16px}.menu-btn{display:block}.logo{min-width:0}.search{display:none}.grid2{grid-template-columns:1fr}
+ .clock .d{display:none}}
 </style></head>
-<body><header><a class="brand" href="/">🎬 Promo Video Pipeline</a><a class="btn primary" href="/new">+ New brief</a>{% block hdr %}{% endblock %}</header>
-<main>{% block body %}{% endblock %}</main></body></html>
+<body>
+<header class="top">
+ <button class="menu-btn" onclick="document.querySelector('.side').classList.toggle('open')" aria-label="Menu">{{ icon('menu', 22) }}</button>
+ <a class="logo" href="/"><img src="/static/logo-mark.png" alt="Udhaar Box"><span><b>{{ app_name }}</b><small><i></i>by Udhaar Box</small></span></a>
+ <form class="search" action="/videos" method="get">{{ icon('search', 17) }}<input type="search" name="q" placeholder="Search videos, campaigns, people…" value="{{ q or '' }}"></form>
+ <div class="clock" title="India Standard Time">{{ icon('clock', 18) }}<div><div class="t" id="clk-t">--:--</div><div class="d" id="clk-d"></div></div></div>
+ <a class="btn primary" href="/new">{{ icon('new', 16) }}New video</a>
+</header>
+
+<nav class="side">
+ <div class="sec">Overview</div>
+ <a href="/" class="{{ 'on' if active=='dashboard' }}">{{ icon('dashboard') }}Dashboard</a>
+ <div class="sec">Create</div>
+ <a href="/new" class="{{ 'on' if active=='new' }}">{{ icon('new') }}New video</a>
+ <a href="/campaigns" class="{{ 'on' if active=='campaigns' }}">{{ icon('campaigns') }}Campaigns</a>
+ <div class="sec">Review</div>
+ <a href="/approvals" class="{{ 'on' if active=='approvals' }}">{{ icon('approvals') }}Approvals{% if nav.approvals %}<span class="count hot">{{ nav.approvals }}</span>{% endif %}</a>
+ <a href="/production" class="{{ 'on' if active=='production' }}">{{ icon('production') }}In production{% if nav.production %}<span class="count cool">{{ nav.production }}</span>{% elif nav.failed %}<span class="count bad">{{ nav.failed }}</span>{% endif %}</a>
+ <div class="sec">Library</div>
+ <a href="/library" class="{{ 'on' if active=='library' }}">{{ icon('library') }}Video library</a>
+ <a href="/videos" class="{{ 'on' if active=='videos' }}">{{ icon('videos') }}All videos</a>
+ <a href="/trash" class="{{ 'on' if active=='trash' }}">{{ icon('trash') }}Trash{% if nav.trash %}<span class="count cool">{{ nav.trash }}</span>{% endif %}</a>
+ <div class="sec">Insights</div>
+ <a href="/history" class="{{ 'on' if active=='history' }}">{{ icon('history') }}Activity history</a>
+ <a href="/usage" class="{{ 'on' if active=='usage' }}">{{ icon('usage') }}Usage &amp; cost</a>
+ <div class="sec">Setup</div>
+ <a href="/brand" class="{{ 'on' if active=='brand' }}">{{ icon('brand') }}Brand kit</a>
+ <a href="/settings" class="{{ 'on' if active=='settings' }}">{{ icon('settings') }}Settings</a>
+ <div class="engine"><span class="h">AI engine</span>{% for k,v in providers.items() %}<div><span>{{k}}</span><b>{{v}}</b></div>{% endfor %}</div>
+</nav>
+
+<main><div class="wrap">{% block body %}{% endblock %}
+<footer class="foot">{{ app_name }} · brief → approve → publish · Udhaar Box</footer></div></main>
+<script>
+(function(){var t=document.getElementById('clk-t'),d=document.getElementById('clk-d');
+function tick(){var n=new Date();
+t.textContent=n.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+d.textContent=n.toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' · IST';}
+tick();setInterval(tick,1000);})();
+</script>
+</body></html>

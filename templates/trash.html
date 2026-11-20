@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon, badge %}
+{% block title %}Trash{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Trash</h1><p>Deleted videos and campaigns. Restore them, or delete them for good — that also removes their files and history.</p></div>
+{% if rows %}<form method="post" action="/trash/empty" onsubmit="return confirm('Permanently delete all {{ rows|length }} video(s) in Trash?\nThis removes their files and history and cannot be undone.')">
+<button class="btn ghost danger">{{ icon('trash',16) }}Empty Trash</button></form>{% endif %}</div>
+<div class="card">
+{% if rows %}<div class="table-wrap"><table>
+<thead><tr><th>Video</th><th>Campaign</th><th>Status when deleted</th><th>Deleted</th><th></th></tr></thead>
+<tbody>{% for j in rows %}<tr>
+<td><a class="strong" href="/job/{{j.id}}">{{ j.brief.topic }}</a><div class="muted sm">Created {{ created(j) }}</div></td>
+<td><span class="chip">{{ campaign_of(j) }}</span></td>
+<td>{{ badge(j) }}</td>
+<td class="muted sm">{{ j.state.deleted }}{% if j.state.deleted_by %}<br>by {{ j.state.deleted_by }}{% endif %}</td>
+<td class="right nowrap">
+<form class="inline" method="post" action="/job/{{j.id}}/restore"><button class="btn sm dark">{{ icon('restore',14) }}Restore</button></form>
+<form class="inline" method="post" action="/job/{{j.id}}/purge" data-t="{{ j.brief.topic }}" onsubmit="return confirm('Permanently delete “' + this.dataset.t + '”?\nIts files and history are removed. This cannot be undone.')"><button class="btn sm ghost danger">{{ icon('trash',14) }}Delete forever</button></form>
+</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="empty">Trash is empty.</div>{% endif %}
+</div>
+{% endblock %}

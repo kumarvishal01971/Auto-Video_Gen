@@ -1,0 +1,50 @@
+{# Shared UI pieces for Video Pilot #}
+{% macro icon(name, size=18) -%}
+<svg class="ic" width="{{size}}" height="{{size}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == 'dashboard' %}<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
+{%- elif name == 'new' %}<path d="M12 5v14M5 12h14"/>
+{%- elif name == 'approvals' %}<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+{%- elif name == 'production' %}<path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>
+{%- elif name == 'library' %}<rect x="2" y="3" width="20" height="18" rx="2.5"/><path d="M7 3v18M17 3v18M2 12h20M2 7.5h5M2 16.5h5M17 16.5h5M17 7.5h5"/>
+{%- elif name == 'videos' %}<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+{%- elif name == 'campaigns' %}<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+{%- elif name == 'history' %}<circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.5 2"/>
+{%- elif name == 'usage' %}<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>
+{%- elif name == 'brand' %}<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1a1.6 1.6 0 0 1 1.6-1.7h2c3 0 5.5-2.5 5.5-5.6C21.9 6 17.5 2 12 2z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="6.8" r="1"/><circle cx="15.5" cy="7.2" r="1"/>
+{%- elif name == 'settings' %}<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
+{%- elif name == 'search' %}<circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.3-4.3"/>
+{%- elif name == 'clock' %}<circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.5 2"/>
+{%- elif name == 'download' %}<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>
+{%- elif name == 'copy' %}<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>
+{%- elif name == 'menu' %}<path d="M3 6h18M3 12h18M3 18h18"/>
+{%- elif name == 'trash' %}<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>
+{%- elif name == 'restore' %}<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+{%- elif name == 'arrow' %}<path d="M5 12h14M13 6l6 6-6 6"/>
+{%- endif %}</svg>
+{%- endmacro %}
+
+{% macro badge(j) -%}
+{% set s = j.status %}
+<span class="badge {{ 'b-wait' if s.startswith('await') else 'b-done' if s=='published' else 'b-fail' if s=='failed' else 'b-q' if s=='queued' else 'b-run' }}">{% if s not in ('published','failed','queued') and not s.startswith('await') %}<i class="pulse"></i>{% endif %}{{ j.status_label }}</span>
+{%- endmacro %}
+
+{% macro delete_btn(j, back='/videos', text='') -%}
+<form method="post" action="/job/{{j.id}}/delete" class="inline" data-t="{{ j.brief.topic }}" onclick="event.stopPropagation()" onsubmit="return confirm('Move “' + this.dataset.t + '” to Trash?\nYou can restore it from Trash.')">
+<input type="hidden" name="back" value="{{ back }}"><button class="btn sm ghost danger" title="Move to Trash">{{ icon('trash',14) }}{{ text }}</button></form>
+{%- endmacro %}
+
+{% macro video_table(rows, created, campaign_of, empty="No videos here yet.", back='/videos') -%}
+{% if not rows %}<div class="empty">{{ empty }}</div>{% else %}
+<div class="table-wrap"><table class="list">
+<thead><tr><th></th><th>Video</th><th>Campaign</th><th>Requested by</th><th>Created</th><th>Status</th><th></th></tr></thead>
+<tbody>{% for j in rows %}{% set sb = j.storyboard or {} %}
+<tr onclick="location='/job/{{j.id}}'">
+<td class="t-thumb">{% if sb.thumbnail %}<img src="/files/{{j.id}}/{{sb.thumbnail}}" alt="">{% elif sb.shots and sb.shots[0].keyframe %}<img src="/files/{{j.id}}/{{sb.shots[0].keyframe}}" alt="">{% else %}<span class="ph">UB</span>{% endif %}</td>
+<td><a href="/job/{{j.id}}" class="strong">{{ j.brief.topic }}</a><div class="muted sm">{{ j.brief.objective }}{% if j.brief.language %} · {{ j.brief.language|upper }}{% endif %}</div></td>
+<td><a href="/campaigns/{{ campaign_of(j)|urlencode }}" class="chip" onclick="event.stopPropagation()">{{ campaign_of(j) }}</a></td>
+<td>{{ j.brief.requested_by or '—' }}</td>
+<td class="muted nowrap">{{ created(j) }}</td>
+<td>{{ badge(j) }}</td>
+<td class="right nowrap">{% if j.status.startswith('await') %}<a class="btn sm primary" href="/job/{{j.id}}">Review</a> {% endif %}{{ delete_btn(j, back) }}</td>
+</tr>{% endfor %}</tbody></table></div>{% endif %}
+{%- endmacro %}

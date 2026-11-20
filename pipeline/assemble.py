@@ -1,8 +1,10 @@
 """Step 9: assembly & branding with FFmpeg.
 Fits each clip to the voiceover, adds on-screen text, subtitles, logo, CTA end card and music,
 and exports every format in config.FORMATS (9:16 and 16:9)."""
+import os
 import random
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -17,8 +19,8 @@ ENDCARD_SEC = 3.0
 DEVANAGARI = re.compile(r"[ऀ-ॿ]")
 
 
-def run(cmd: list[str]):
-    r = subprocess.run(cmd, capture_output=True, text=True)
+def run(cmd: list[str], cwd: str | Path | None = None):
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     if r.returncode != 0:
         raise RuntimeError(f"FFmpeg failed: {r.stderr[-800:]}")
 
@@ -28,10 +30,13 @@ def _font_path(brand: dict, text: str, kind: str = "heading") -> str:
     if p.is_file():
         return str(p)
     if DEVANAGARI.search(text):
-        r = subprocess.run(["fc-match", "-f", "%{file}", ":lang=hi:weight=bold"], capture_output=True, text=True)
-        if r.stdout.strip():
-            return r.stdout.strip()
-    return brand["fonts"]["fallback"]
+        fc_match = shutil.which("fc-match")
+        if fc_match:
+            r = subprocess.run([fc_match, "-f", "%{file}", ":lang=hi:weight=bold"],
+                               capture_output=True, text=True)
+            if r.stdout.strip() and Path(r.stdout.strip()).is_file():
+                return r.stdout.strip()
+    return str(config.resolve_font(brand["fonts"]["fallback"]))
 
 
 def _ass_color(hex_color: str, alpha: str = "00") -> str:
@@ -60,7 +65,7 @@ def write_ass(sb: dict, w: int, h: int, brand: dict, path: Path):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: Sub,{font},{sub_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,4,1,2,60,60,{int(h * 0.12)},1",
-        f"Style: Title,{font},{title_size},&H00FFFFFF,&H00FFFFFF,{prim},{prim},1,0,0,0,100,100,0,0,3,18,0,8,60,60,{int(h * 0.1)},1",
+        f"Style: Title,{font},{title_size},{_ass_color(brand['colors']['secondary'])},&H00FFFFFF,{prim},{prim},1,0,0,0,100,100,0,0,3,18,0,8,60,60,{int(h * 0.1)},1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     t = 0.0
@@ -79,27 +84,65 @@ def write_ass(sb: dict, w: int, h: int, brand: dict, path: Path):
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _fit(d, text, font_path, size, max_w, max_lines=2):
+    """Shrink + wrap text so it fits max_w in at most max_lines lines."""
+    while size > 14:
+        f = ImageFont.truetype(font_path, size)
+        lines, line = [], ""
+        for word in text.split():
+            test = (line + " " + word).strip()
+            if d.textlength(test, font=f) <= max_w or not line:
+                line = test
+            else:
+                lines.append(line)
+                line = word
+        lines.append(line)
+        if len(lines) <= max_lines and all(d.textlength(l, font=f) <= max_w for l in lines):
+            return f, lines
+        size -= 2
+    return ImageFont.truetype(font_path, 14), [text]
+
+
 def endcard_image(sb: dict, w: int, h: int, brand: dict, path: Path):
-    im = Image.new("RGB", (w, h), brand["colors"]["background"])
+    """Black card: logo, CTA in white, gold band with subtext + disclaimer."""
+    c = brand["colors"]
+    im = Image.new("RGB", (w, h), c["background"])
     d = ImageDraw.Draw(im)
-    d.rectangle([0, int(h * 0.78), w, h], fill=brand["colors"]["primary"])
+    band_top = int(h * (0.80 if h > w else 0.76))
+    d.rectangle([0, band_top, w, h], fill=c["secondary"])
     logo = config.ROOT / brand["logo"]
-    y = int(h * 0.22)
+    y = int(h * (0.26 if h > w else 0.16))
     if logo.is_file():
         lg = Image.open(logo).convert("RGBA")
-        lw = int(min(w, h) * 0.45)
-        lg = lg.resize((lw, int(lg.height * lw / lg.width)))
+        lw = int(w * (0.78 if h > w else 0.46))
+        lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
         im.paste(lg, ((w - lw) // 2, y), lg)
-        y += lg.height + int(h * 0.05)
+        y += lg.height + int(h * 0.06)
     else:
-        f = ImageFont.truetype(_font_path(brand, brand["brand_name"]), int(min(w, h) * 0.08))
-        d.text((w / 2, y), brand["brand_name"], font=f, fill=brand["colors"]["secondary"], anchor="mt")
+        f = ImageFont.truetype(_font_path(brand, brand["brand_name"]), int(min(w, h) * 0.09))
+        d.text((w / 2, y), brand["brand_name"], font=f, fill=c["secondary"], anchor="mt")
         y += int(h * 0.12)
-    cta, sub = sb["cta"].get("text", ""), sb["cta"].get("subtext", brand["website"])
-    f1 = ImageFont.truetype(_font_path(brand, cta), int(min(w, h) * 0.075))
-    f2 = ImageFont.truetype(_font_path(brand, sub, "body"), int(min(w, h) * 0.04))
-    d.text((w / 2, y), cta, font=f1, fill=brand["colors"]["text"], anchor="mt")
-    d.text((w / 2, int(h * 0.89)), sub, font=f2, fill="white", anchor="mm")
+    d.rectangle([int(w * 0.42), y, int(w * 0.58), y + 5], fill=c["secondary"])
+    y += int(h * 0.04)
+    cta = sb["cta"].get("text", "") or brand.get("default_cta", "")
+    f1, lines = _fit(d, cta, _font_path(brand, cta), int(min(w, h) * 0.085), w * 0.86)
+    for ln in lines:
+        d.text((w / 2, y), ln, font=f1, fill=c["text"], anchor="mt")
+        y += int(f1.size * 1.25)
+    sub = sb["cta"].get("subtext") or brand["website"]
+    disc = brand.get("disclaimer", "")
+    band_h = h - band_top
+    f2, sl = _fit(d, sub, _font_path(brand, sub, "body"), int(min(w, h) * 0.045), w * 0.86)
+    f3, dl = _fit(d, disc, _font_path(brand, disc or "x", "body"), int(min(w, h) * 0.026), w * 0.86) if disc else (None, [])
+    block = len(sl) * f2.size * 1.25 + (len(dl) * f3.size * 1.3 + 12 if dl else 0)
+    ty = band_top + (band_h - block) / 2
+    for ln in sl:
+        d.text((w / 2, ty), ln, font=f2, fill=c["background"], anchor="mt")
+        ty += f2.size * 1.25
+    ty += 12
+    for ln in dl:
+        d.text((w / 2, ty), ln, font=f3, fill="#2b2b2b", anchor="mt")
+        ty += f3.size * 1.3
     im.save(path, quality=95)
 
 
@@ -189,8 +232,14 @@ def assemble(job_id: str, sb: dict) -> dict:
         ass = work / f"{name}.ass"
         write_ass(sb, w, h, brand, ass)
         fontsdir = config.ROOT / "brand" / "fonts"
-        sub = f"subtitles='{ass.resolve()}'" + (f":fontsdir='{fontsdir.resolve()}'" if fontsdir.is_dir() else "")
-        logo = config.ROOT / brand["logo"]
+        sub = f"subtitles='{ass.name}'"
+        if fontsdir.is_dir():
+            try:
+                font_dir = os.path.relpath(fontsdir.resolve(), work.resolve()).replace(os.sep, "/")
+                sub += f":fontsdir='{font_dir}'"
+            except ValueError:
+                pass
+        logo = config.ROOT / brand.get("watermark", brand["logo"])
         out = final / f"{_slug(sb['title'])}_{name}.mp4"
         if logo.is_file():
             lw = int(min(w, h) * 0.16)
@@ -201,7 +250,8 @@ def assemble(job_id: str, sb: dict) -> dict:
             fc, ins = f"[0:v]{sub}[v]", ["-i", str(silent), "-i", str(audio)]
         run(["ffmpeg", "-y", *ins, "-filter_complex", fc, "-map", "[v]", "-map", "1:a",
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-             "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out)])
+             "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out)],
+            cwd=str(work.resolve()))
         outputs[name] = str(out.relative_to(jd))
     thumb = final / "thumbnail.jpg"
     run(["ffmpeg", "-y", "-ss", "1.5", "-i", str(jd / outputs["9x16"]), "-frames:v", "1", str(thumb)])

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}Approvals{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="20"><style>
+.lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.lane{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}
+.lane h2{display:flex;align-items:center;gap:8px;font-size:15.5px}.lane h2 .n{margin-left:auto;background:var(--orange-t);color:var(--orange-3);border-radius:999px;padding:1px 10px;font-size:12.5px}
+.lane .step{font-size:12px;color:var(--mute);margin:-8px 0 12px}
+.item{display:block;border:1px solid var(--line);border-radius:14px;padding:11px;margin-bottom:10px;color:var(--navy);display:flex;gap:11px}
+.item:hover{border-color:var(--orange);color:var(--navy)}
+.item img,.item .ph{width:46px;height:64px;border-radius:9px;object-fit:cover;background:var(--navy);flex:none;display:grid;place-items:center;color:#fff;font:700 11px var(--head)}
+.item b{display:block;font-size:14px}.item small{color:var(--mute)}
+@media(max-width:1100px){.lanes{grid-template-columns:1fr}}
+</style>{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Approvals</h1><p>Every video stops at three checkpoints. Nothing is published without a person approving it.</p></div></div>
+<div class="lanes">
+{% for g, label in gates.items() %}{% set rows = groups[g] %}
+<div class="lane"><h2>{{ loop.index }}. {{ label }} <span class="n">{{ rows|length }}</span></h2>
+<div class="step">{{ ['Check message, facts, language, compliance','Check brand look, faces, accuracy — cheapest point to fix','Check pacing, sync, subtitles, branding, legal'][loop.index0] }}</div>
+{% for j in rows %}{% set sb = j.storyboard or {} %}
+<a class="item" href="/job/{{j.id}}">{% if sb.thumbnail %}<img src="/files/{{j.id}}/{{sb.thumbnail}}" alt="">{% elif sb.shots and sb.shots[0].keyframe %}<img src="/files/{{j.id}}/{{sb.shots[0].keyframe}}" alt="">{% else %}<span class="ph">UB</span>{% endif %}
+<span><b>{{ j.brief.topic }}</b><small>{{ campaign_of(j) }} · {{ j.brief.requested_by or 'team' }}<br>{{ created(j) }}</small></span></a>
+{% else %}<div class="empty">All clear</div>{% endfor %}
+</div>{% endfor %}
+</div>
+{% endblock %}

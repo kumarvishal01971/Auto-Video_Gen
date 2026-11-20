@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Brand kit{% endblock %}
+{% block head %}<style>
+.bk{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.sw{display:flex;gap:12px;flex-wrap:wrap}.sw div{text-align:center;font-size:12.5px}
+.sw span{display:block;width:92px;height:70px;border-radius:14px;border:1px solid var(--line);margin-bottom:6px}
+.logo-prev{background:#000;border-radius:14px;padding:22px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.logo-prev img{max-height:70px;max-width:100%}
+.kv{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:14px}.kv b{color:var(--mute);font-weight:600}
+.tags span{display:inline-block;background:var(--red-t);color:var(--red);border-radius:999px;padding:2px 10px;margin:0 6px 6px 0;font-size:12.5px}
+@media(max-width:1100px){.bk{grid-template-columns:1fr}}
+</style>{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Brand kit</h1><p>The look and rules every video follows. Edit <code>brand/brand.json</code> (and the files in <code>brand/</code>), then restart.</p></div></div>
+<div class="bk">
+<div class="card"><h2>Video colours</h2><div class="sw">
+{% for k, v in b.colors.items() %}<div><span style="background:{{v}}"></span><b>{{ k|capitalize }}</b><br><code>{{ v }}</code></div>{% endfor %}</div>
+<p class="muted sm" style="margin:14px 0 0">Used for on-screen text, the end card and the gold band. The website uses the Udhaar Box web palette separately.</p></div>
+<div class="card"><h2>Logo &amp; watermark</h2><div class="logo-prev">
+<img src="/brand-assets/{{ b.logo.split('/',1)[1] }}" alt="Logo">{% if b.watermark %}<img src="/brand-assets/{{ b.watermark.split('/',1)[1] }}" alt="Watermark" style="max-height:60px">{% endif %}</div>
+<p class="muted sm" style="margin:12px 0 0">Logo on the end card; icon as the corner watermark during the video.</p></div>
+<div class="card"><h2>Tone &amp; compliance</h2><div class="kv">
+<b>Default language</b><span>{{ b.tone_guide.language_default|capitalize }}</span>
+<b>Voice</b><span>{{ b.tone_guide.voice }}</span>
+<b>Compliance</b><span>{{ b.tone_guide.compliance }}</span>
+<b>End-card disclaimer</b><span>{{ b.disclaimer or '—' }}</span>
+<b>Default CTA</b><span>{{ b.default_cta }}</span></div>
+<h3 style="margin-top:16px">Never say</h3><div class="tags">{% for w in b.tone_guide.words_to_avoid %}<span>{{ w }}</span>{% endfor %}</div></div>
+<div class="card"><h2>Strategy &amp; style</h2><div class="kv">
+<b>Platforms</b><span>{{ b.strategy.platforms|join(', ') }}</span>
+<b>Audience</b><span>{{ b.strategy.audience_default }}</span>
+<b>Content pillars</b><span>{{ b.strategy.content_pillars|join(' · ') }}</span>
+<b>Visual style</b><span>{{ b.visual_style }}</span>
+<b>Subtitle font</b><span>{{ b.subtitle_font }}{% if fonts %} · in brand/fonts: {{ fonts|join(', ') }}{% endif %}</span>
+<b>Music tracks</b><span>{{ music|join(', ') if music else 'none yet — add licensed .mp3 files to brand/music' }}</span></div></div>
+</div>
+{% endblock %}

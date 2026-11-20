@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Usage & cost{% endblock %}
+{% block body %}
+<div class="page-head"><div><h1>Usage &amp; cost</h1><p>What the AI engine produced each month and an estimate of paid-API spend.</p></div></div>
+<div class="card">
+{% if rows %}<div class="table-wrap"><table>
+<thead><tr><th>Month</th><th>Briefs</th><th>Published</th><th>Images made</th><th>Video clips made</th><th>Voiceover words</th><th>Rework requests</th><th>Est. API spend</th><th>Per published video</th></tr></thead>
+<tbody>{% for m in rows %}<tr><td class="strong">{{ m.month }}</td><td>{{ m.briefs }}</td><td>{{ m.published }}</td><td>{{ m.images }}</td><td>{{ m.clips }}</td><td>{{ m.voice_words }}</td><td>{{ m.rework }}</td>
+<td class="strong">₹{{ '{:,}'.format(m.est_inr) }}</td><td>{{ '₹{:,}'.format(m.per_video) if m.per_video is not none else '—' }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="empty">No usage yet.</div>{% endif %}
+</div>
+<div class="card"><h3>How the estimate works</h3>
+<p class="muted" style="margin:0">Clips × ${{ clip_rate }} + images × ${{ img_rate }}, at ₹{{ inr|int }}/$. Free providers count as ₹0. Flat subscriptions (voice, Krea, server) are not included.
+Change the rates with <code>COST_PER_CLIP_USD</code>, <code>COST_PER_IMAGE_USD</code> and <code>USD_INR</code> in <code>.env</code>. <b>Rework requests</b> = rejected scripts, redone shots and final-video change requests — fewer means better briefs.</p></div>
+{% endblock %}

@@ -19,6 +19,11 @@ Matches the team workflow chart (steps 1–11). Step 12 (performance tracking) c
 | Video | `VIDEO_PROVIDER=kenburns` | free — animates the approved stills |
 | Voice | `TTS_PROVIDER=edge` | free, no key (Hindi + English voices) |
 
+### Automatic free-provider fallback
+- Script/storyboard: Gemini remains primary. If it fails, the app tries Groq when `GROQ_API_KEY` is set; `GROQ_BASE_URL` and `GROQ_MODEL` default to Groq's API and Qwen 3.8 27B.
+- Keyframe images: the app tries `IMAGE_PROVIDER` first, then each provider in `IMAGE_FALLBACK` in order. Pollinations works without a key but may include a watermark; `POLLINATIONS_API_KEY` enables no-watermark requests. Cloudflare needs `CF_ACCOUNT_ID` and `CF_API_TOKEN`. Hugging Face needs `HF_TOKEN`.
+- Without the corresponding fallback key/token, the primary provider's failure is surfaced instead of silently substituting placeholder output.
+
 Real AI video: set `VIDEO_PROVIDER=fal_wan` + `FAL_KEY` (paid, ≈ $0.10 per 5 s clip on Wan 2.2 Turbo).
 Load $5–10 for the trial. Switching providers never needs code changes — only `.env`.
 
@@ -27,7 +32,7 @@ Load $5–10 for the trial. Switching providers never needs code changes — onl
 
 ## 3. Set up the brand (Section A of the chart)
 - `brand/brand.json` — colours, tone guide, words to avoid, compliance, strategy, default CTA, visual style.
-- `brand/logo.png` — transparent PNG; added as a watermark and on the end card.
+- `brand/logo.png` — end-card logo; `brand/watermark.png` — corner watermark.
 - `brand/fonts/` — `heading.ttf`, `body.ttf`. For Hindi subtitles install **Noto Sans Devanagari**
   (or put the .ttf here) — name is set in `subtitle_font`.
 - `brand/music/` — licensed .mp3 tracks; one is picked per video, mixed under the voice.
@@ -35,6 +40,7 @@ Load $5–10 for the trial. Switching providers never needs code changes — onl
 ## 4. Where things are
 - Every video: `data/jobs/<id>/` (keyframes, clips, audio, final).
 - Approved videos: `data/output/<date>_<title>/` — both formats, thumbnail, `caption.txt`, `storyboard.json`.
+- Deleted videos and campaigns move to **Trash** and can be restored. **Delete forever** and **Empty Trash** permanently remove their job history and generated files.
 
 ## 5. Connect other tools (optional)
 - `POST /api/briefs` (JSON, same fields as the form) creates a video — use from n8n, Google Forms, WhatsApp bots.
@@ -43,7 +49,7 @@ Load $5–10 for the trial. Switching providers never needs code changes — onl
 ## 6. Code map
 | File | Step |
 |---|---|
-| `app.py`, `templates/` | dashboard: brief form + 3 approval pages, API |
+| `app.py`, `templates/`, `static/` | dashboard, approvals, production, video library, campaigns, activity, usage, brand, settings, API |
 | `pipeline/script.py` | 2 · script & storyboard prompt |
 | `pipeline/media.py` | 4 keyframes · 6 clips · 7 QC · 8 voice |
 | `pipeline/assemble.py` | 9 · FFmpeg assembly, subtitles, logo, end card, music, both formats |

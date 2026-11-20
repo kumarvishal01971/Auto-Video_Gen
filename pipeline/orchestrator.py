@@ -40,6 +40,8 @@ def _loop():
 def advance(job_id: str):
     """Run automatic steps from the job's current status until the next gate."""
     j = store.get(job_id)
+    if not j or (j["state"] or {}).get("deleted"):
+        return  # deleted or in Trash: don't spend API credits on it
     st, state, sb = j["status"], j["state"] or {}, j["storyboard"]
 
     if st in ("queued", "scripting"):

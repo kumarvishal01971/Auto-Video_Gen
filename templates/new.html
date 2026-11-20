@@ -1,25 +1,43 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon %}
+{% block title %}New video{% endblock %}
+{% block head %}<style>
+.form-grid{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start}
+.card.tips{position:sticky;top:calc(var(--top) + 20px);background:var(--navy);color:#DCD9F2;border:0}
+.card.tips h3{color:#fff}.tips li{margin:6px 0;font-size:13.5px}.tips ul{padding-left:18px;margin:0}
+.req{color:var(--orange-2)}
+@media(max-width:1100px){.form-grid{grid-template-columns:1fr}.card.tips{position:static}}
+</style>{% endblock %}
 {% block body %}
+<div class="page-head"><div><span class="eyebrow"><i></i>Step 1 of 4</span><h1>New video brief</h1>
+<p>Fill this in and Video Pilot writes the script and storyboard for your approval.</p></div></div>
+<div class="form-grid">
 <form class="card" method="post" action="/new">
-<h1>Step 1 · Topic brief</h1>
-<p class="muted">Fill this in and the pipeline writes the script and storyboard for your approval.</p>
-<label>Topic *</label><input type="text" name="topic" required placeholder="e.g. Launch of Victoria Fifty-five, Phase 2">
+<label>Topic <span class="req">*</span></label><input type="text" name="topic" required value="{{ p.topic or '' }}" placeholder="e.g. New Year 2027 — naye saal ki khushiyan, paison ki tension nahi">
 <div class="grid2">
-<div><label>Objective</label><select name="objective"><option>Awareness</option><option>Leads / enquiries</option><option>Event promotion</option><option>Offer / sale</option><option>Brand trust</option></select></div>
-<div><label>Language</label><select name="language"><option value="hinglish">Hinglish</option><option value="hi">Hindi</option><option value="en">English</option></select></div>
-<div><label>Target audience <span class="hint">(blank = brand default)</span></label><input type="text" name="audience" placeholder="{{ brand.strategy.audience_default }}"></div>
-<div><label>Platforms</label><input type="text" name="platforms" value="Instagram Reels, YouTube Shorts, Facebook"></div>
+<div><label>Campaign <span class="hint">— groups related videos</span></label><input type="text" name="campaign" list="camps" value="{{ p.campaign or '' }}" placeholder="e.g. New Year 2027">
+<datalist id="camps">{% for c in campaign_names %}<option value="{{c}}">{% endfor %}</datalist></div>
+<div><label>Objective</label><select name="objective">{% for o in ['Leads / enquiries','Awareness','App downloads','Event promotion','Offer / sale','Brand trust'] %}<option {{ 'selected' if p.objective==o }}>{{o}}</option>{% endfor %}</select></div>
+<div><label>Language</label><select name="language">{% for v,l in [('hinglish','Hinglish'),('hi','Hindi'),('en','English')] %}<option value="{{v}}" {{ 'selected' if p.language==v }}>{{l}}</option>{% endfor %}</select></div>
+<div><label>Video length (seconds)</label><input type="number" name="duration" value="{{ p.duration or 35 }}" min="20" max="60"></div>
+<div><label>Target audience <span class="hint">(blank = brand default)</span></label><input type="text" name="audience" value="{{ p.audience or '' }}" placeholder="{{ brand.strategy.audience_default }}"></div>
+<div><label>Platforms</label><input type="text" name="platforms" value="{{ p.platforms or 'Instagram Reels, YouTube Shorts, Facebook' }}"></div>
 </div>
-<label>Key message</label><textarea name="key_message" placeholder="The one thing viewers must remember"></textarea>
+<label>Key message</label><textarea name="key_message" placeholder="The one thing viewers must remember">{{ p.key_message or '' }}</textarea>
+<label>Call to action <span class="hint">(blank = {{ brand.default_cta }})</span></label><input type="text" name="cta" value="{{ p.cta or '' }}" placeholder="{{ brand.default_cta }}">
+<label>Facts, dates, figures to include <span class="hint">— the AI uses only these, exactly. Leave out anything not confirmed.</span></label>
+<textarea name="facts" placeholder="e.g. Offer valid 25 Dec – 5 Jan.">{{ p.facts or '' }}</textarea>
 <div class="grid2">
-<div><label>Call to action <span class="hint">(blank = brand default)</span></label><input type="text" name="cta" placeholder="{{ brand.default_cta }}"></div>
-<div><label>Video length (seconds)</label><input type="number" name="duration" value="40" min="20" max="60"></div>
+<div><label>Deadline</label><input type="text" name="deadline" value="{{ p.deadline or '' }}" placeholder="e.g. 28 Dec"></div>
+<div><label>Requested by</label><input type="text" name="requested_by" value="{{ p.requested_by or '' }}" placeholder="Name / department"></div>
 </div>
-<label>Facts, dates, prices to include <span class="hint">— the AI will use only these, exactly</span></label><textarea name="facts" placeholder="e.g. Site visit on 30 Nov, 10am–5pm. 3 & 4 BHK. RERA no. ..."></textarea>
-<div class="grid2">
-<div><label>Deadline</label><input type="text" name="deadline" placeholder="e.g. 25 Nov"></div>
-<div><label>Requested by</label><input type="text" name="requested_by" placeholder="Name / department"></div>
-</div>
-<p style="margin-top:18px"><button class="btn primary" type="submit">Create video →</button></p>
+<p style="margin-top:22px;display:flex;gap:10px"><button class="btn primary" type="submit">Create video {{ icon('arrow',16) }}</button><a class="btn ghost" href="/">Cancel</a></p>
 </form>
+<aside class="card tips"><h3>Tips for a good brief</h3><ul>
+<li>One clear message per video.</li>
+<li>Put exact offers, dates and figures in <b>Facts</b> — the AI never invents them.</li>
+<li>Use the same <b>Campaign</b> name for related videos so they group together.</li>
+<li>Lending ads: no rates, amounts or approval promises unless confirmed. The T&amp;C line is added automatically.</li>
+<li>Next: you'll approve the script (~1 min), then the images, then the final video.</li></ul></aside>
+</div>
 {% endblock %}

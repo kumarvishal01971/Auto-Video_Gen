@@ -1,11 +1,11 @@
 {
   "_note": "Section A (set up once). Fill this in with the team; the pipeline reads it for every video.",
-  "brand_name": "Prabhatam Group",
-  "website": "www.prabhatamgroup.com",
+  "brand_name": "UdhaarBox",
+  "website": "Download the UdhaarBox app",
   "colors": {
-    "primary": "#0B3D91",
-    "secondary": "#F5A623",
-    "background": "#0E1116",
+    "primary": "#000000",
+    "secondary": "#C9A24A",
+    "background": "#000000",
     "text": "#FFFFFF"
   },
   "fonts": {
@@ -17,32 +17,37 @@
   "logo": "brand/logo.png",
   "music_dir": "brand/music",
   "music_volume": 0.12,
-  "visual_style": "cinematic, premium, warm natural light, shallow depth of field, clean modern Indian setting, photorealistic",
+  "visual_style": "bright, aspirational modern Indian lifestyle, warm natural light, rich black and gold accents, photorealistic, cinematic, shallow depth of field",
   "tone_guide": {
     "language_default": "hinglish",
-    "voice": "warm, confident, trustworthy; short punchy sentences",
+    "voice": "warm, friendly, reassuring and confident; short punchy Hinglish lines; like a helpful friend, never pushy",
     "words_to_avoid": [
-      "guaranteed returns",
-      "best in the world",
-      "cheapest"
+      "guaranteed approval",
+      "instant approval guaranteed",
+      "no documents",
+      "zero interest",
+      "free money",
+      "no credit check",
+      "lowest interest"
     ],
-    "compliance": "No unverifiable claims. No prices/dates unless given in the brief. No competitor names."
+    "compliance": "Lending ad: no interest rate, loan amount, tenure or approval time unless given exactly in the brief. Do not promise approval. Encourage responsible borrowing. The T&C disclaimer is added to the end card automatically - do not repeat it."
   },
   "strategy": {
     "platforms": [
       "Instagram Reels",
       "YouTube Shorts",
-      "Facebook",
-      "YouTube"
+      "Facebook"
     ],
-    "audience_default": "urban Indian families and professionals, 25-50",
+    "audience_default": "salaried and self-employed Indians, 22-40, metro and tier-2 cities",
     "content_pillars": [
-      "projects & milestones",
-      "customer trust",
-      "events & offers",
-      "brand story"
+      "festive & seasonal moments",
+      "everyday money needs",
+      "trust & simplicity",
+      "app how-to"
     ]
   },
-  "default_cta": "Visit www.prabhatamgroup.com",
-  "subtitle_font": "Noto Sans Devanagari"
+  "default_cta": "Download UdhaarBox today",
+  "subtitle_font": "Noto Sans Devanagari",
+  "watermark": "brand/watermark.png",
+  "disclaimer": "T&C apply. Loans subject to eligibility."
 }
