@@ -25,7 +25,7 @@
  <div class="body"><b>{{ j.brief.topic }}</b>
   <span class="sm muted">{{ created(j)[:10] }} · {{ j.brief.requested_by or 'team' }}</span>
   <span><a class="chip" href="/campaigns/{{ campaign_of(j)|urlencode }}">{{ campaign_of(j) }}</a></span>
-  <div class="acts">{% for name, rel in sb.outputs.items() %}<a class="btn sm {{ 'primary' if loop.first else 'ghost' }}" href="/files/{{j.id}}/{{rel}}" download>{{ icon('download',14) }}{{ name|replace('x',':') }}</a>{% endfor %}
+  <div class="acts">{% for name, rel in sb.outputs.items() %}<a class="btn sm {{ 'primary' if loop.first else 'ghost' }}" href="/files/{{j.id}}/{{rel}}" download>{{ icon('download',14) }}{{ fmt_label.get(name, name) }}</a>{% endfor %}
   <a class="btn sm ghost" href="/new?src={{j.id}}" title="New video from this brief">{{ icon('copy',14) }}Reuse</a>{{ delete_btn(j, '/library') }}</div>
  </div>
 </div>{% endfor %}

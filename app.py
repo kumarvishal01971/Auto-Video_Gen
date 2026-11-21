@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import config
-from pipeline import orchestrator, store
+from pipeline import orchestrator, store, styles
 
 APP_NAME = "Video Pilot"
 app = FastAPI(title=APP_NAME)
@@ -68,7 +68,8 @@ def page(request: Request, name: str, active: str, **ctx):
     }
     return templates.TemplateResponse(request, name, {
         "app_name": APP_NAME, "active": active, "nav": nav, "providers": _providers(),
-        "created": _created, "campaign_of": _campaign, "gates": GATES, **ctx})
+        "created": _created, "campaign_of": _campaign, "gates": GATES, "fmt_label": config.FORMAT_LABELS,
+        "style_name": lambda j: styles.get(j["brief"].get("style"))["short"], "styles": styles.STYLES, **ctx})
 
 
 # ---------- pages ----------
@@ -104,7 +105,7 @@ def new_form(request: Request, src: str = "", campaign: str = "", user=Depends(a
     return page(request, "new.html", "new", brand=config.load_brand(), p=prefill, campaign_names=names)
 
 
-BRIEF_FIELDS = ["topic", "campaign", "objective", "audience", "platforms", "key_message", "cta", "facts",
+BRIEF_FIELDS = ["topic", "style", "campaign", "objective", "audience", "platforms", "key_message", "cta", "facts",
                 "language", "duration", "deadline", "requested_by"]
 
 
@@ -231,12 +232,16 @@ def settings(request: Request, user=Depends(auth)):
     keys = {"LLM_API_KEY": bool(config.LLM_API_KEY), "HF_TOKEN": bool(config.HF_TOKEN),
             "FAL_KEY": bool(config.FAL_KEY), "ELEVENLABS_API_KEY": bool(config.ELEVENLABS_API_KEY),
             "CF_API_TOKEN": bool(config.env("CF_API_TOKEN")), "POLLINATIONS_API_KEY": bool(config.env("POLLINATIONS_API_KEY")),
+            "SARVAM_API_KEY": bool(config.env("SARVAM_API_KEY")),
             "DASHBOARD_PASSWORD": bool(config.DASHBOARD_PASSWORD)}
     rows = [("Script AI", config.LLM_PROVIDER, config.LLM_MODEL if config.LLM_PROVIDER != "mock" else "—"),
             ("Images", config.IMAGE_PROVIDER, "fallback: " + (config.env("IMAGE_FALLBACK") or "none")),
             ("Video clips", config.VIDEO_PROVIDER, f"{config.VIDEO_TAKES} take(s) per shot"),
             ("Quality check", "vision AI" if config.QC_VISION else "basic checks", ""),
-            ("Voice", config.TTS_PROVIDER, config.EDGE_VOICE_HI if config.TTS_PROVIDER == "edge" else "")]
+            ("Voice", config.TTS_PROVIDER, {"sarvam": "speaker: " + config.env("SARVAM_SPEAKER", "ritu"),
+                                            "elevenlabs": f"{config.ELEVENLABS_MODEL} · voice {config.ELEVENLABS_VOICE_ID[:8]}…",
+                                            "edge": config.EDGE_VOICE_HI}.get(config.TTS_PROVIDER, "")),
+            ("Export shapes", ", ".join(config.FORMAT_LABELS.get(k, k) for k in config.FORMATS), "")]
     return page(request, "settings.html", "settings", rows=rows, keys=keys,
                 paths={"Jobs": config.JOBS_DIR, "Published videos": config.OUTPUT_DIR, "Brand kit": config.BRAND_DIR},
                 formats=config.FORMATS)
@@ -298,9 +303,7 @@ def retry(job_id: str, step: str = Form("scripting"), user=Depends(auth)):
 # ---------- delete / trash ----------
 @app.post("/job/{job_id}/delete")
 def delete_video(job_id: str, back: str = Form("/videos"), user=Depends(auth)):
-    j = store.get(job_id) or _404()
-    if store.is_busy(j) and not (j["state"] or {}).get("deleted"):
-        raise HTTPException(409, "This video is being generated right now. Wait for it to finish, then move it to Trash.")
+    store.get(job_id) or _404()
     store.trash(job_id, user)
     store.log(job_id, f"🗑 Moved to Trash by {user}")
     return RedirectResponse(_safe(back), 303)
@@ -319,22 +322,18 @@ def restore_video(job_id: str, user=Depends(auth)):
 @app.post("/job/{job_id}/purge")
 def purge_video(job_id: str, user=Depends(auth)):
     j = store.get(job_id) or _404()
-    if not (j["state"] or {}).get("deleted"):
-        raise HTTPException(409, "Move the video to Trash before permanently deleting it.")
-    if store.is_busy(j):
-        raise HTTPException(409, "This video is still being generated. Restore it and wait for it to finish before deleting it.")
+    if store.is_busy(j) and not (j["state"] or {}).get("deleted"):
+        raise HTTPException(409, "This video is being generated right now. Wait for it to finish, then delete it.")
     store.purge(job_id)
     return RedirectResponse("/trash", 303)
 
 
 @app.post("/campaigns/{name}/delete")
 def delete_campaign(name: str, user=Depends(auth)):
-    jobs = [j for j in store.all_jobs() if _campaign(j) == name]
-    if any(store.is_busy(j) for j in jobs):
-        raise HTTPException(409, "This campaign has a video being generated. Wait for it to finish before deleting the campaign.")
-    for j in jobs:
-        store.trash(j["id"], user)
-        store.log(j["id"], f"🗑 Moved to Trash by {user} (campaign '{name}' deleted)")
+    for j in store.all_jobs():
+        if _campaign(j) == name:
+            store.trash(j["id"], user)
+            store.log(j["id"], f"🗑 Moved to Trash by {user} (campaign '{name}' deleted)")
     return RedirectResponse("/campaigns", 303)
 
 
@@ -345,10 +344,7 @@ def trash_page(request: Request, user=Depends(auth)):
 
 @app.post("/trash/empty")
 def empty_trash(user=Depends(auth)):
-    jobs = store.all_jobs(trash=True)
-    if any(store.is_busy(j) for j in jobs):
-        raise HTTPException(409, "Trash contains a video still being generated. Restore it and wait for it to finish before emptying Trash.")
-    for j in jobs:
+    for j in store.all_jobs(trash=True):
         store.purge(j["id"])
     return RedirectResponse("/trash", 303)
 

@@ -1,5 +1,6 @@
 """Step 2: brief -> script + storyboard (JSON)."""
 import config
+from pipeline import styles
 from pipeline.providers import llm
 
 SYSTEM = """You are a senior creative director at an Indian advertising agency.
@@ -14,10 +15,12 @@ SCHEMA = """{
       "id": 1,
       "duration_sec": 5,
       "visual": "what the viewer sees, 1 sentence",
-      "image_prompt": "detailed English prompt for a photorealistic still image; NO text, letters, logos or signage in the image",
+      "image_prompt": "detailed English prompt for the still image in the chosen STYLE; NO text, letters, logos or signage in the image",
       "motion_prompt": "English: camera + subject motion for image-to-video, e.g. 'slow dolly in, curtains moving gently'",
-      "on_screen_text": "max 6 words shown on screen (in the video language), or empty",
-      "voiceover": "the line spoken over this shot, in the video language"
+      "on_screen_text": "max 5 punchy words shown big on screen, Roman script, or empty",
+      "delivery": "ONE emotion/direction word for the voice actor: excited | warm | curious | worried | relieved | playful | confident | reassuring | whispers | laughs",
+      "voiceover": "the line as SPOKEN by a human voice actor (see VOICEOVER rules)",
+      "caption": "the same line for on-screen subtitles, Roman script (Hinglish in English letters), max 10 words"
     }
   ],
   "cta": {"text": "max 5 words", "subtext": "website / phone / handle"},
@@ -28,6 +31,9 @@ SCHEMA = """{
 
 def build_prompt(brief: dict, brand: dict, comments: str = "", previous: dict | None = None) -> str:
     tone = brand["tone_guide"]
+    style = styles.get(brief.get("style"))
+    # AI video clips are max ~5 s, so keep each line short enough to stay in motion
+    shot_range = "3-5" if config.VIDEO_PROVIDER in ("hf_space", "fal_wan") and style["renderer"] == "video" else "3-7"
     lang = brief.get("language") or tone["language_default"]
     p = f"""Create a {brief.get('duration', 40)}-second promotional video storyboard.
 
@@ -39,21 +45,39 @@ BRIEF
 - Key message: {brief.get('key_message')}
 - Call to action: {brief.get('cta') or brand['default_cta']}
 - Facts that MUST be used exactly (do not invent others): {brief.get('facts') or 'none'}
-- Language: {lang} (hinglish = Hindi in Devanagari mixed with common English words)
+- Language: {lang} (hinglish = everyday Hindi mixed with common English words)
+
+STYLE
+- {style['script']}
 
 BRAND
 - Brand: {brand['brand_name']} ({brand['website']})
-- Visual style for every image_prompt: {brand['visual_style']}
+- Visual style for every image_prompt: {style['image'] or brand['visual_style']}
+- Never show: {brand.get('visual_avoid', 'alcohol, smoking, gambling, cash being thrown')}
 - Voice: {tone['voice']}
 - Never use: {', '.join(tone['words_to_avoid'])}
 - Compliance: {tone['compliance']}
 
 RULES
-- 6 to 8 shots; durations add up to about {brief.get('duration', 40)} seconds (3-7 s each).
+- 6 to 8 shots; durations add up to about {brief.get('duration', 40)} seconds ({shot_range} s each).
 - Shot 1 must hook in the first 2 seconds. Last shot leads into the CTA.
 - Voiceover pace: about 2.3 words per second of shot duration.
+
+VOICEOVER (this is what makes it sound human, not robotic)
+- Write how a real person TALKS, not how ads read: short phrases, natural fillers where they fit
+  ("arre", "yaar", "bas", "sach mein?", "toh"), questions, a small laugh or sigh if it fits the moment.
+- Use punctuation to direct pacing: commas for small pauses, "…" for a beat, "!" for energy, "?" for curiosity.
+- For hindi/hinglish write Hindi words in Devanagari and English words in English letters
+  (e.g. "नया साल आ गया… और plans ready हैं, पर wallet? 😅" without emojis). For english, plain English.
+- The lines must flow as ONE continuous story when read back-to-back; vary emotion across shots
+  (e.g. curious → worried → relieved → excited → confident).
 - Keep characters/locations consistent across image_prompts (repeat key descriptors).
 - No text inside images; on-screen text is added later by our templates.
+- RELEVANCE: each shot's image_prompt must SHOW what that shot's voiceover is saying, literally and
+  concretely (e.g. line about an empty wallet -> "an open empty brown wallet with a moth flying out";
+  line about opening the app -> "a hand holding a smartphone showing a simple loan app screen with a big
+  tick"). Never a generic or decorative picture. Every shot must show a DIFFERENT scene/object.
+- "visual" must describe that same picture in one plain sentence so the reviewer can check it.
 
 Return JSON in exactly this schema:
 {SCHEMA}"""
@@ -72,14 +96,16 @@ def generate(brief: dict, comments: str = "", previous: dict | None = None) -> d
 
 
 def normalise(sb: dict, brief: dict, brand: dict) -> dict:
+    sb["style"] = styles.get(brief.get("style"))["key"]
     sb.setdefault("title", brief.get("topic", "Promo"))
     sb.setdefault("language", brief.get("language") or brand["tone_guide"]["language_default"])
     shots = sb.get("shots") or []
     for i, s in enumerate(shots, 1):
         s["id"] = i
         s["duration_sec"] = float(s.get("duration_sec") or 5)
-        for k in ("visual", "image_prompt", "motion_prompt", "on_screen_text", "voiceover"):
+        for k in ("visual", "image_prompt", "motion_prompt", "on_screen_text", "voiceover", "caption", "delivery"):
             s.setdefault(k, "")
+        s["delivery"] = str(s["delivery"]).strip(" []").lower()
     sb["shots"] = shots
     sb.setdefault("cta", {"text": brief.get("cta") or "Learn more", "subtext": brand["website"]})
     sb.setdefault("caption", "")
@@ -88,25 +114,33 @@ def normalise(sb: dict, brief: dict, brand: dict) -> dict:
 
 
 def _mock(brief, brand):
+    """Template storyboard for testing without an AI key."""
     topic = brief.get("topic", "Our new launch")
-    style = brand["visual_style"]
-    beats = [
-        ("Aerial view at sunrise", "slow aerial push in", "Ek nayi shuruaat", f"{topic} — ek nayi shuruaat."),
-        ("Happy family arriving", "camera tracks with the family", "Aapke sapnon ka ghar", "Jahan har sapna sach hota hai."),
-        ("Premium interiors detail", "slow pan across the room", "Premium quality", "Har kone mein premium quality."),
-        ("Green landscaped garden", "gentle crane up", "Prakriti ke kareeb", "Hariyali aur sukoon, dono saath."),
-        ("Team of experts at work", "slow dolly left", "Bharosa jo dikhta hai", f"{brand['brand_name']} ka bharosa."),
-        ("Night facade lit up", "slow zoom out", "Aaj hi judiye", "Aaj hi apna kal surakshit kijiye."),
+    st = styles.get(brief.get("style"))
+    look = st["image"] or brand["visual_style"]
+    beats = [  # visual, motion, on-screen, delivery, voiceover (TTS), caption (subtitle)
+        ("Friends planning a New Year party", "slow push in", "Plans ready?", "excited",
+         "नया साल आ गया… और plans? एकदम ready!", "Naya saal aa gaya… aur plans? Ekdum ready!"),
+        ("A young man checks his phone, worried", "slow zoom on face", "Wallet khaali?", "worried",
+         "पर ये wallet… हम्म, थोड़ा खाली है यार।", "Par ye wallet… hmm, thoda khaali hai yaar."),
+        ("He opens the UdhaarBox app on his phone", "gentle dolly in", "UdhaarBox kholo", "curious",
+         "तो क्या करें? सीधा UdhaarBox खोलो।", "Toh kya karein? Seedha UdhaarBox kholo."),
+        ("Simple steps on the phone, he smiles", "slow pan", "Bas kuch taps", "relieved",
+         "बस कुछ taps… और काम हो गया।", "Bas kuch taps… aur kaam ho gaya."),
+        ("Friends celebrating under fireworks", "crane up", "Tension free!", "laughs",
+         "अब party भी, खुशियाँ भी… tension zero!", "Ab party bhi, khushiyan bhi… tension zero!"),
+        ("Phone with app icon, gold confetti", "slow zoom out", "Abhi download karo", "confident",
+         "नए साल की शुरुआत, UdhaarBox के साथ।", "Naye saal ki shuruaat, UdhaarBox ke saath."),
     ]
     return {
         "title": topic,
         "language": "hinglish",
         "shots": [
-            {"duration_sec": 6, "visual": v, "image_prompt": f"{v}, {topic}, {style}",
-             "motion_prompt": m, "on_screen_text": t, "voiceover": vo}
-            for v, m, t, vo in beats
+            {"duration_sec": 5, "visual": v, "image_prompt": f"{v}, {look}",
+             "motion_prompt": m, "on_screen_text": t, "delivery": d, "voiceover": vo, "caption": cap}
+            for v, m, t, d, vo, cap in beats
         ],
-        "cta": {"text": brief.get("cta") or "Abhi sampark karein", "subtext": brand["website"]},
+        "cta": {"text": brief.get("cta") or brand.get("default_cta", "Download today"), "subtext": brand["website"]},
         "caption": f"{topic} — {brief.get('key_message', '')}",
-        "hashtags": ["#Prabhatam", "#NewLaunch"],
+        "hashtags": ["#" + brand["brand_name"].replace(" ", ""), "#NewYear"],
     }

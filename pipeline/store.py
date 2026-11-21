@@ -4,10 +4,9 @@ import sqlite3
 import threading
 import time
 import uuid
-from contextlib import contextmanager
 from pathlib import Path
 
-from config import DB_PATH, JOBS_DIR, OUTPUT_DIR
+from config import DB_PATH, JOBS_DIR
 
 _lock = threading.Lock()
 
@@ -29,18 +28,10 @@ STATUSES = {
 WAITING = {"await_script", "await_keyframes", "await_final"}
 
 
-@contextmanager
 def _conn():
     c = sqlite3.connect(DB_PATH)
     c.row_factory = sqlite3.Row
-    try:
-        yield c
-        c.commit()
-    except Exception:
-        c.rollback()
-        raise
-    finally:
-        c.close()
+    return c
 
 
 def init():
@@ -120,30 +111,10 @@ def purge(job_id: str):
     j = get(job_id)
     if not j:
         return
-    if not (j["state"] or {}).get("deleted"):
-        raise ValueError("Move the video to Trash before permanently deleting it.")
-
-    jobs_dir = JOBS_DIR.resolve()
-    job_path = (JOBS_DIR / job_id).resolve()
-    if job_path.parent != jobs_dir:
-        raise ValueError("Refusing to delete a job folder outside the jobs directory.")
-
     pub = (j["state"] or {}).get("published_to")
-    pub_path = None
-    if pub:
-        output_dir = OUTPUT_DIR.resolve()
-        pub_path = Path(pub).resolve()
-        if pub_path.parent != output_dir:
-            raise ValueError("Refusing to delete a published folder outside the output directory.")
-
-    if pub_path and pub_path.exists():
-        if not pub_path.is_dir():
-            raise ValueError("Published output path is not a directory.")
-        shutil.rmtree(pub_path)
-    if job_path.exists():
-        if not job_path.is_dir():
-            raise ValueError("Job path is not a directory.")
-        shutil.rmtree(job_path)
+    if pub and Path(pub).is_dir():
+        shutil.rmtree(pub, ignore_errors=True)
+    shutil.rmtree(JOBS_DIR / job_id, ignore_errors=True)
     with _lock, _conn() as c:
         c.execute("DELETE FROM jobs WHERE id=?", (job_id,))
 

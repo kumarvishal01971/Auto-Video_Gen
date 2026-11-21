@@ -6,6 +6,12 @@
 .card.tips{position:sticky;top:calc(var(--top) + 20px);background:var(--navy);color:#DCD9F2;border:0}
 .card.tips h3{color:#fff}.tips li{margin:6px 0;font-size:13.5px}.tips ul{padding-left:18px;margin:0}
 .req{color:var(--orange-2)}
+.styles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.style-opt{margin:0;font-weight:400;cursor:pointer}.style-opt input{position:absolute;opacity:0}
+.style-opt span{display:block;border:1.5px solid var(--lav-line);border-radius:14px;padding:12px 14px;height:100%;background:#fff}
+.style-opt b{display:block;font:600 14.5px var(--head);color:var(--navy);margin-bottom:3px}.style-opt small{color:var(--mute);font-size:12.5px;line-height:1.4;display:block}
+.style-opt input:checked+span{border-color:var(--orange);background:var(--orange-t);box-shadow:0 0 0 3px rgba(249,115,22,.12)}
+@media(max-width:760px){.styles{grid-template-columns:1fr}}
 @media(max-width:1100px){.form-grid{grid-template-columns:1fr}.card.tips{position:static}}
 </style>{% endblock %}
 {% block body %}
@@ -14,6 +20,10 @@
 <div class="form-grid">
 <form class="card" method="post" action="/new">
 <label>Topic <span class="req">*</span></label><input type="text" name="topic" required value="{{ p.topic or '' }}" placeholder="e.g. New Year 2027 — naye saal ki khushiyan, paison ki tension nahi">
+<label>Video style</label>
+<div class="styles">{% for key, st in styles.items() %}
+<label class="style-opt"><input type="radio" name="style" value="{{key}}" {{ 'checked' if (p.style or 'whiteboard')==key }}>
+<span><b>{{ st.short }}</b><small>{{ {'whiteboard':'Hand-drawn explainer — a marker draws simple doodles. Clear, friendly, almost free.','stickman3d':'Faceless 3D characters act out a short story. Best with AI video turned on.','realistic':'Photo-real people and places, AI-animated.'}[key] }}</small></span></label>{% endfor %}</div>
 <div class="grid2">
 <div><label>Campaign <span class="hint">— groups related videos</span></label><input type="text" name="campaign" list="camps" value="{{ p.campaign or '' }}" placeholder="e.g. New Year 2027">
 <datalist id="camps">{% for c in campaign_names %}<option value="{{c}}">{% endfor %}</datalist></div>

@@ -133,7 +133,8 @@ def final_decision(job_id: str, approve: bool, rerun_from: str = "", comments: s
         publish(job_id)
         return
     store.log(job_id, f"↺ Changes requested by {who or 'reviewer'} (from {rerun_from}): {comments}")
-    target = {"script": "scripting", "keyframes": "keyframes", "voice": "voice", "assembly": "assembly"}[rerun_from]
+    target = {"script": "scripting", "keyframes": "keyframes", "clips": "clips", "voice": "voice",
+              "assembly": "assembly"}[rerun_from]
     extra = {"comments": comments} if rerun_from == "script" else {}
     _go(job_id, target, **extra)
 

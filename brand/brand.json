@@ -30,7 +30,7 @@
       "no credit check",
       "lowest interest"
     ],
-    "compliance": "Lending ad: no interest rate, loan amount, tenure or approval time unless given exactly in the brief. Do not promise approval. Encourage responsible borrowing. The T&C disclaimer is added to the end card automatically - do not repeat it."
+    "compliance": "Lending ad: no interest rate, loan amount, tenure or approval time unless given exactly in the brief. Do not promise approval. Encourage responsible borrowing. The T&C disclaimer is added to the end card automatically - do not repeat it. No alcohol, smoking or gambling in visuals."
   },
   "strategy": {
     "platforms": [
@@ -49,5 +49,11 @@
   "default_cta": "Download UdhaarBox today",
   "subtitle_font": "Noto Sans Devanagari",
   "watermark": "brand/watermark.png",
-  "disclaimer": "T&C apply. Loans subject to eligibility."
+  "disclaimer": "T&C apply. Loans subject to eligibility.",
+  "visual_avoid": "alcohol or drinks glasses, smoking, gambling, cash being thrown, real bank logos, scary debt imagery",
+  "whiteboard_hand": "brand/hand.png",
+  "hand_tip": [
+    0,
+    0
+  ]
 }
