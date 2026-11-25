@@ -29,7 +29,7 @@
 <datalist id="camps">{% for c in campaign_names %}<option value="{{c}}">{% endfor %}</datalist></div>
 <div><label>Objective</label><select name="objective">{% for o in ['Leads / enquiries','Awareness','App downloads','Event promotion','Offer / sale','Brand trust'] %}<option {{ 'selected' if p.objective==o }}>{{o}}</option>{% endfor %}</select></div>
 <div><label>Language</label><select name="language">{% for v,l in [('hinglish','Hinglish'),('hi','Hindi'),('en','English')] %}<option value="{{v}}" {{ 'selected' if p.language==v }}>{{l}}</option>{% endfor %}</select></div>
-<div><label>Video length (seconds)</label><input type="number" name="duration" value="{{ p.duration or 35 }}" min="20" max="60"></div>
+<div><label>Video length (seconds)</label><input type="number" name="duration" value="{{ p.duration or 35 }}" min="10" max="60"></div>
 <div><label>Target audience <span class="hint">(blank = brand default)</span></label><input type="text" name="audience" value="{{ p.audience or '' }}" placeholder="{{ brand.strategy.audience_default }}"></div>
 <div><label>Platforms</label><input type="text" name="platforms" value="{{ p.platforms or 'Instagram Reels, YouTube Shorts, Facebook' }}"></div>
 </div>

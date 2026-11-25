@@ -35,6 +35,11 @@ def build_prompt(brief: dict, brand: dict, comments: str = "", previous: dict | 
     # AI video clips are max ~5 s, so keep each line short enough to stay in motion
     shot_range = "3-5" if config.VIDEO_PROVIDER in ("hf_space", "fal_wan") and style["renderer"] == "video" else "3-7"
     lang = brief.get("language") or tone["language_default"]
+    dur = int(brief.get("duration") or 40)
+    if dur < 20:   # short spots: ~3 s per shot
+        n_shots = f"{max(2, dur // 4)} to {max(3, dur // 3)}"
+    else:
+        n_shots = "5 to 7" if style["renderer"] == "talking" else "6 to 8"
     p = f"""Create a {brief.get('duration', 40)}-second promotional video storyboard.
 
 BRIEF
@@ -59,7 +64,7 @@ BRAND
 - Compliance: {tone['compliance']}
 
 RULES
-- 6 to 8 shots; durations add up to about {brief.get('duration', 40)} seconds ({shot_range} s each).
+- {n_shots} shots; durations add up to about {brief.get('duration', 40)} seconds ({shot_range} s each).
 - Shot 1 must hook in the first 2 seconds. Last shot leads into the CTA.
 - Voiceover pace: about 2.3 words per second of shot duration.
 
@@ -81,9 +86,41 @@ VOICEOVER (this is what makes it sound human, not robotic)
 
 Return JSON in exactly this schema:
 {SCHEMA}"""
+    if style["renderer"] == "talking":
+        p += talking_rules(style, brand, brief)
     if previous and comments:
         p += f"\n\nPREVIOUS VERSION (rejected):\n{previous}\n\nREVIEWER COMMENTS — fix all of these:\n{comments}"
     return p
+
+
+def brand_cast(style_key: str, brand: dict) -> list[dict]:
+    return [c for c in brand.get("characters", []) if style_key in c.get("styles", [])]
+
+
+def talking_rules(style: dict, brand: dict, brief: dict) -> str:
+    cast = brand_cast(style["key"], brand)
+    if cast:
+        who = "\n".join(f"- id \"{c['id']}\": {c['name']} — LOOK: {c['look']}. PERSONALITY: {c.get('personality', '')}. "
+                        f"VOICE: {c.get('voice', '')}" for c in cast)
+        cast_rule = (f"Use these brand characters (copy their id, name and LOOK exactly):\n{who}\n"
+                     "You may add ONE supporting character only if the story really needs it, in the same art style.")
+    else:
+        cast_rule = ("Invent 1-2 characters. Give each a precise, repeatable LOOK (age, face, hair, clothes, "
+                     "colours) and a VOICE (male/female, age, tone).")
+    return f"""
+
+TALKING CHARACTERS (the characters speak on camera with lip-sync — this is what makes it feel real)
+{cast_rule}
+- Add to the JSON: "characters": [{{"id": "short_id", "name": "...", "look": "...", "voice": "male|female, age, tone"}}]
+- Every shot has "speaker": the id of the character who speaks the line ON CAMERA (or "narrator" only for the last CTA shot if nobody is on screen).
+- image_prompt: the speaker in a medium or close shot facing the camera, mouth clearly visible, ONE clear
+  facial expression and gesture that matches the line, repeat the speaker's full LOOK every time.
+- motion_prompt = ACTING: facial expression changes, gesture, body movement and camera for that line
+  (e.g. "slumps, long sigh, eyes roll up, then a small helpless laugh; slow push in").
+- Each line is 2-7 seconds when spoken (at least 4 words).
+- The line must sound like THIS character talking (their personality), not like an announcer.
+- You may put up to 2 voice-acting tags inside a voiceover line where a real person would do it:
+  [sighs] [laughs] [chuckles] [excited] [whispers] [sarcastic] [relieved] [gasps]. Never in "caption"."""
 
 
 def generate(brief: dict, comments: str = "", previous: dict | None = None) -> dict:
@@ -106,7 +143,22 @@ def normalise(sb: dict, brief: dict, brand: dict) -> dict:
         for k in ("visual", "image_prompt", "motion_prompt", "on_screen_text", "voiceover", "caption", "delivery"):
             s.setdefault(k, "")
         s["delivery"] = str(s["delivery"]).strip(" []").lower()
+        s.setdefault("speaker", "narrator")
     sb["shots"] = shots
+    st = styles.get(brief.get("style"))
+    if st["renderer"] == "talking":
+        cast = {c.get("id"): c for c in sb.get("characters") or [] if c.get("id")}
+        for bc in brand_cast(st["key"], brand):   # brand mascots: sheet, look and voice always from brand.json
+            cast[bc["id"]] = {**cast.get(bc["id"], {}), "id": bc["id"], "name": bc["name"], "look": bc["look"],
+                              "voice": bc.get("voice", ""), "sheet": bc.get("sheet", ""),
+                              "voice_id": bc.get("voice_id", ""), "brand": True}
+        known = set(cast)
+        for s in shots:
+            if s["speaker"] not in known and s["speaker"] != "narrator":
+                # match by name, else the main character
+                hit = next((k for k, c in cast.items() if str(c.get("name", "")).lower() == str(s["speaker"]).lower()), None)
+                s["speaker"] = hit or (next(iter(cast)) if cast else "narrator")
+        sb["characters"] = list(cast.values())
     sb.setdefault("cta", {"text": brief.get("cta") or "Learn more", "subtext": brand["website"]})
     sb.setdefault("caption", "")
     sb.setdefault("hashtags", [])
@@ -117,6 +169,8 @@ def _mock(brief, brand):
     """Template storyboard for testing without an AI key."""
     topic = brief.get("topic", "Our new launch")
     st = styles.get(brief.get("style"))
+    if st["renderer"] == "talking":
+        return _mock_talking(brief, brand, st)
     look = st["image"] or brand["visual_style"]
     beats = [  # visual, motion, on-screen, delivery, voiceover (TTS), caption (subtitle)
         ("Friends planning a New Year party", "slow push in", "Plans ready?", "excited",
@@ -140,6 +194,39 @@ def _mock(brief, brand):
              "motion_prompt": m, "on_screen_text": t, "delivery": d, "voiceover": vo, "caption": cap}
             for v, m, t, d, vo, cap in beats
         ],
+        "cta": {"text": brief.get("cta") or brand.get("default_cta", "Download today"), "subtext": brand["website"]},
+        "caption": f"{topic} — {brief.get('key_message', '')}",
+        "hashtags": ["#" + brand["brand_name"].replace(" ", ""), "#NewYear"],
+    }
+
+
+def _mock_talking(brief, brand, st):
+    cast = brand_cast(st["key"], brand) or [{"id": "rohan", "name": "Rohan",
+        "look": "Indian man, 28, short black hair, light stubble, navy shirt with rolled sleeves",
+        "voice": "male, 28, warm Hinglish"}]
+    c = cast[0]
+    topic = brief.get("topic", "Our new launch")
+    look = st["image"] or brand["visual_style"]
+    beats = [  # visual, acting, on-screen, voiceover, caption
+        ("night office desk, files piled up, calendar shows 31 DEC; {n} slumps, cheek on hand",
+         "slumps, long sigh, eyes roll up, small helpless laugh; slow push in", "Month-end?",
+         "[sighs] New Year आ गया… और salary? अभी दूर है यार।", "New Year aa gaya… aur salary? Abhi door hai yaar."),
+        ("{n} counts on fingers, thought bubbles of party, rent and a gift box", "counts on fingers, panics, rubs forehead",
+         "", "Party, rent, माँ का gift… सब एक साथ? कैसे होगा?", "Party, rent, Maa ka gift… sab ek saath?"),
+        ("{n} pops up smiling holding a phone toward camera with the app open", "eyes go wide, springs up, grins, swings phone to camera",
+         "UdhaarBox kholo", "[excited] अरे रुको! Tension क्यों? UdhaarBox खोलो!", "Arre ruko! Tension kyun? UdhaarBox kholo!"),
+        ("close shot of {n} tapping the phone, ticks popping, relaxed smile", "taps phone, nods, leans back relaxed",
+         "Simple steps", "Details भरो, eligibility check करो… बस, हो गया।", "Details bharo, eligibility check karo… bas!"),
+        ("{n} on a rooftop at night with fireworks, arms wide, joyful", "throws arms wide, laughs, winks and gives a thumbs-up",
+         "Tension free!", "[laughs] तो इस New Year… tension को बोलो bye bye!", "Toh is New Year… tension ko bolo bye bye!"),
+    ]
+    return {
+        "title": topic, "language": "hinglish",
+        "characters": [{k: c.get(k, "") for k in ("id", "name", "look", "voice")}],
+        "shots": [{"duration_sec": 5, "speaker": c["id"], "visual": v.format(n=c["name"]),
+                   "image_prompt": f"{v.format(n=c['name'])}. {c['name']}: {c['look']}. {look}",
+                   "motion_prompt": m, "on_screen_text": t, "delivery": "", "voiceover": vo, "caption": cap}
+                  for v, m, t, vo, cap in beats],
         "cta": {"text": brief.get("cta") or brand.get("default_cta", "Download today"), "subtext": brand["website"]},
         "caption": f"{topic} — {brief.get('key_message', '')}",
         "hashtags": ["#" + brand["brand_name"].replace(" ", ""), "#NewYear"],

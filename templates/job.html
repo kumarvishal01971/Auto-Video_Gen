@@ -16,8 +16,8 @@ details summary{cursor:pointer;color:var(--navy-3);font-weight:600}
 .jh{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
 </style>{% endblock %}
 {% block body %}
-{% set order=['scripting','await_script','keyframes','await_keyframes','clips','qc','voice','assembly','await_final','published'] %}
-{% set names=['2 Script','3 Approve','4 Keyframes','5 Approve','6 Clips','7 QC','8 Voice','9 Assembly','10 Approve','11 Published'] %}
+{% set order=['scripting','await_script','voice','keyframes','await_keyframes','clips','qc','assembly','await_final','published'] %}
+{% set names=['2 Script','3 Approve','4 Voice','5 Keyframes','6 Approve','7 Animate','8 QC','9 Assembly','10 Approve','11 Published'] %}
 {% set cur = order.index(j.status) if j.status in order else -1 %}
 <div class="card">
 <div class="jh"><div><a href="/campaigns/{{ campaign_of(j)|urlencode }}" class="chip">{{ campaign_of(j) }}</a> <span class="chip">{{ style_name(j) }}</span>
@@ -38,7 +38,7 @@ details summary{cursor:pointer;color:var(--navy-3);font-weight:600}
 {% if j.status == 'failed' %}
 <div class="card" style="border-left:5px solid #c62828"><h2>Something failed</h2><p>{{ j.error }}</p>
 <form method="post" action="/job/{{j.id}}/retry" class="actions"><select name="step" style="width:auto">
-<option value="scripting">Retry from script</option><option value="keyframes">Retry from keyframes</option><option value="clips">Retry from clips</option><option value="voice">Retry from voice</option><option value="assembly">Retry from assembly</option></select>
+<option value="clips">Resume animating (finished shots are reused)</option><option value="assembly">Retry from assembly</option><option value="voice">Retry from voice</option><option value="keyframes">Retry from keyframes</option><option value="scripting">Retry from script</option></select>
 <button class="btn primary">Retry</button></form></div>
 {% endif %}
 
@@ -60,8 +60,9 @@ details summary{cursor:pointer;color:var(--navy-3);font-weight:600}
 
 {% if j.status == 'await_keyframes' and sb and not j.state.deleted %}
 <form class="card gate" method="post" action="/job/{{j.id}}/keyframes">
-<h2>Step 5 · Approve keyframes</h2>
-<p class="muted">Check each picture <b>matches its voiceover line</b> (shown under it), plus brand look, accuracy and no garbled text. Tick or add a note to redo a shot — this is the cheapest point to fix things.</p>
+<h2>Step 6 · Approve voice &amp; keyframes</h2>
+<p class="muted">Listen to the voice, then check each picture <b>matches its line</b>, the character looks right, and there is no garbled text. Tick or add a note to redo a shot — this is the cheapest point to fix things. To change the voice, approve and choose <b>Voice</b> at the final step, or reject the script.</p>
+{% if sb.voice_file %}<p><audio controls src="/files/{{j.id}}/{{sb.voice_file}}" style="width:100%;max-width:520px"></audio><br><span class="sm muted">Speech check: {{ sb.voice_qc.score }}/10 · {{ sb.voice_qc.issues }} · voice: {{ sb.voice_qc.provider }}</span></p>{% endif %}
 <div class="kf">{% for s in sb.shots %}<figure><img src="/files/{{j.id}}/{{s.keyframe}}" alt="shot {{s.id}}">
 <figcaption><b>Shot {{s.id}}</b> · {{s.visual}}<div class="sm" style="margin:5px 0;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid var(--line)">🎙 {{ s.caption or s.voiceover }}</div><label style="font-weight:400;margin:4px 0"><input type="checkbox" name="redo" value="{{s.id}}"> Redo</label>
 <input type="text" name="note_{{s.id}}" placeholder="What to change (optional)"></figcaption></figure>{% endfor %}</div>
@@ -76,15 +77,18 @@ details summary{cursor:pointer;color:var(--navy-3);font-weight:600}
 <div class="vids">{% for name, rel in sb.outputs.items() %}<div><div class="strong">{{ fmt_label.get(name, name) }}</div>
 <video controls preload="metadata" src="/files/{{j.id}}/{{rel}}" style="{{ 'height:520px' if name=='9x16' else 'width:540px' }}"></video>
 <div><a href="/files/{{j.id}}/{{rel}}" download>Download</a></div></div>{% endfor %}</div>
-<p><b>Length:</b> {{ sb.duration_total }} s &nbsp; <b>Caption:</b> {{ sb.caption }} <span class="muted">{{ sb.hashtags|join(' ') }}</span></p>
+<p><b>Length:</b> {{ sb.duration_total }} s &nbsp;{% if sb.cost_usd is defined %}<b>Cost:</b> ${{ sb.cost_usd }} &nbsp;{% endif %} <b>Caption:</b> {{ sb.caption }} <span class="muted">{{ sb.hashtags|join(' ') }}</span></p>
 {% set flagged = sb.shots|selectattr('clip','none')|list %}
 {% set still = sb.shots|selectattr('motion_fallback')|list %}
-{% if still %}<p style="color:var(--orange-3)">⚠ Shots {{ still|map(attribute='id')|join(', ') }} use zoom/pan because the free AI-video allowance ran out. To animate them, choose <b>6 · Video clips</b> below and request changes tomorrow.</p>{% endif %}
+{% set nolip = sb.shots|selectattr('lipsync','sameas',false)|list %}
+{% if nolip %}<p style="color:var(--orange-3)">⚠ Shots {{ nolip|map(attribute='id')|join(', ') }} have no lip-sync (the talking models failed, a fallback was used). Choose <b>7 · Animate</b> below to try again.</p>
+{% elif still %}<p style="color:var(--orange-3)">⚠ Shots {{ still|map(attribute='id')|join(', ') }} use zoom/pan because the free AI-video allowance ran out. To animate them, choose <b>7 · Animate</b> below and request changes tomorrow.</p>{% endif %}
+{% if sb.voice_qc and sb.voice_qc.score < 7 %}<p style="color:#b5562c">⚠ Speech check {{ sb.voice_qc.score }}/10: {{ sb.voice_qc.issues }}</p>{% endif %}
 {% if flagged %}<p style="color:#b5562c">⚠ Shots {{ flagged|map(attribute='id')|join(', ') }} failed the quality check and use an animated still instead.</p>{% endif %}
 {% if j.status == 'await_final' and not j.state.deleted %}
 <form method="post" action="/job/{{j.id}}/final">
 <label>If changes are needed, redo from:</label>
-<select name="rerun_from" style="max-width:360px"><option value="assembly">9 · Assembly (re-render only)</option><option value="clips">6 · Video clips (re-animate)</option><option value="voice">8 · Voice &amp; subtitles</option><option value="keyframes">4 · Keyframes (new images)</option><option value="script">2 · Script (rewrite)</option></select>
+<select name="rerun_from" style="max-width:360px"><option value="assembly">9 · Assembly (re-render only)</option><option value="clips">7 · Animate clips again</option><option value="voice">4 · Voice (new take, re-lip-sync)</option><option value="keyframes">5 · Keyframes (new images)</option><option value="script">2 · Script (rewrite)</option></select>
 <label>Comments</label><textarea name="comments"></textarea>
 <div class="actions"><button class="btn ok" name="action" value="approve">✔ Approve &amp; publish</button>
 <button class="btn warn" name="action" value="changes">↺ Request changes</button></div></form>

@@ -25,8 +25,21 @@ Load $5–10 for the trial. Switching providers never needs code changes — onl
 > Free services (pollinations, edge voices, ElevenLabs free tier) are for **testing**.
 > Before publishing commercially, move to paid/licensed providers.
 
+Temporary AI-provider errors such as HTTP 503 are retried for up to three attempts. If a job still fails,
+retry it from the dashboard after the provider recovers.
+When `GROQ_API_KEY` is configured, the script generator automatically tries Groq if the primary provider
+still fails after retries. Groq has its own rate limits and availability.
+Sarvam and ElevenLabs voice failures fall back to Edge TTS by default; set `TTS_FALLBACK=` to disable it.
+
+Choose **Animated** or **Realistic** in the brief form for talking characters with lip-sync. This flow records the
+voice first, creates character-consistent keyframes, then animates each shot to its audio. It needs a funded
+`FAL_KEY`; ElevenLabs character voices and speech/vision checks are optional. See `.env.example` for model,
+fallback, quality-check, and monthly-budget settings. Paid calls pause at `MONTHLY_BUDGET_USD`.
+
 ## 3. Set up the brand (Section A of the chart)
 - `brand/brand.json` — colours, tone guide, words to avoid, compliance, strategy, default CTA, visual style.
+- `brand/brand.json` → `characters` — optional character sheet, look, personality, and ElevenLabs voice ID.
+- `brand/characters/` — reference sheets that keep brand characters consistent across keyframes.
 - `brand/logo.png` — transparent PNG; added as a watermark and on the end card.
 - `brand/fonts/` — `heading.ttf`, `body.ttf`. For Hindi subtitles install **Noto Sans Devanagari**
   (or put the .ttf here) — name is set in `subtitle_font`.

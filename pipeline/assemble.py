@@ -4,6 +4,7 @@ and exports every format in config.FORMATS (9:16 and 16:9)."""
 import os
 import random
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -30,9 +31,15 @@ def _font_path(brand: dict, text: str, kind: str = "heading") -> str:
     if p.is_file():
         return str(p)
     if DEVANAGARI.search(text):
-        r = subprocess.run(["fc-match", "-f", "%{file}", ":lang=hi:weight=bold"], capture_output=True, text=True)
-        if r.stdout.strip():
-            return r.stdout.strip()
+        fc_match = shutil.which("fc-match")
+        if fc_match:
+            r = subprocess.run(
+                [fc_match, "-f", "%{file}", ":lang=hi:weight=bold"],
+                capture_output=True, text=True,
+            )
+            matched_font = Path(r.stdout.strip())
+            if matched_font.is_file():
+                return str(matched_font)
     return brand["fonts"]["fallback"]
 
 

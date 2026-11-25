@@ -33,16 +33,47 @@ STYLES = {
         ),
         "motion": "smooth character animation, expressive body movement, gentle camera move",
     },
+    "cartoon": {
+        "label": "Animated character — mascot talks (lip-sync)",
+        "short": "Animated",
+        "renderer": "talking",
+        "script": (
+            "ANIMATED MASCOT AD. The brand mascot(s) listed under CHARACTERS act and SPEAK on camera like a "
+            "funny, relatable friend. Each shot: ONE speaking character in a medium or close shot facing the "
+            "camera, a clear facial expression and gesture that matches the line, a simple set behind them."
+        ),
+        "image": (
+            "2D hand-drawn cartoon animation still, bold black outlines, flat colours with light cel shading, "
+            "warm cream and soft yellow backgrounds, big expressive cartoon face, character drawn exactly like "
+            "the reference sheet (same hair, glasses, outfit, proportions), vertical composition, no text"
+        ),
+        "motion": (
+            "bouncy, snappy 2D cartoon animation with squash and stretch and quick anticipation, doodle effects "
+            "like sweat drops and sparkle lines, very expressive face and hands, accurate lip-sync to the voice, "
+            "same character design throughout"
+        ),
+    },
     "realistic": {
-        "label": "Realistic — AI photo-video",
+        "label": "Realistic — real-looking people talk (lip-sync)",
         "short": "Realistic",
-        "renderer": "video",
-        "script": "REALISTIC LIFESTYLE. Photorealistic cinematic shots of real-looking Indian people and places.",
+        "renderer": "talking",
+        "script": (
+            "REALISTIC LIFESTYLE AD. Photorealistic, real-looking Indian people act and SPEAK on camera like a "
+            "real conversation or a person talking to the viewer. Each shot: ONE speaking person in a medium or "
+            "close shot, natural expression and gesture that matches the line."
+        ),
         "image": "",  # uses brand visual_style
-        "motion": "",
+        "motion": (
+            "natural human acting, subtle head and shoulder movement, natural blinking, believable facial "
+            "expressions that match the emotion, accurate lip-sync, gentle handheld cinematic camera"
+        ),
     },
 }
 DEFAULT = "realistic"
+
+
+def talking(name: str | None) -> bool:
+    return get(name)["renderer"] == "talking"
 
 
 def get(name: str | None) -> dict:

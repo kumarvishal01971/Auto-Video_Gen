@@ -55,5 +55,20 @@
   "hand_tip": [
     0,
     0
+  ],
+  "characters": [
+    {
+      "_note": "Brand mascots. sheet = character/model sheet image; voice_id = ElevenLabs voice for this character (empty = ELEVENLABS_VOICE_ID). Not secret.",
+      "id": "ub",
+      "name": "U.B.",
+      "styles": [
+        "cartoon"
+      ],
+      "sheet": "brand/characters/ub_sheet.png",
+      "look": "U.B. (Udhaar Buddy): cartoon Indian guy, big messy curly dark brown hair, oversized round white glasses with large black pupils, small round face, navy zip hoodie with yellow hood lining and yellow drawstrings, yellow U logo on chest, white t-shirt, black pants, white sneakers",
+      "voice": "young Indian male 25-30, warm, funny, slightly sarcastic Hinglish",
+      "personality": "relatable, funny, problem-solver, slightly sarcastic; your finance friend",
+      "voice_id": ""
+    }
   ]
 }

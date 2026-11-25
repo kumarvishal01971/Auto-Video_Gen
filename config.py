@@ -1,6 +1,7 @@
 """Central settings. Every secret comes from environment variables (.env, git-ignored)."""
 import json
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -27,6 +28,9 @@ LLM_PROVIDER = env("LLM_PROVIDER", "mock")          # mock | openai_compat
 LLM_BASE_URL = env("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
 LLM_API_KEY = env("LLM_API_KEY")
 LLM_MODEL = env("LLM_MODEL", "gemini-2.5-flash")
+GROQ_BASE_URL = env("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+GROQ_API_KEY = env("GROQ_API_KEY")
+GROQ_MODEL = env("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 IMAGE_PROVIDER = env("IMAGE_PROVIDER", "placeholder")  # placeholder | pollinations | huggingface | fal
 HF_TOKEN = env("HF_TOKEN")
@@ -39,6 +43,7 @@ FAL_VIDEO_MODEL = env("FAL_VIDEO_MODEL", "fal-ai/wan/v2.2-a14b/image-to-video/tu
 VIDEO_TAKES = int(env("VIDEO_TAKES", "1"))            # 2 in production
 
 TTS_PROVIDER = env("TTS_PROVIDER", "edge")            # sarvam | elevenlabs | edge | silent
+TTS_FALLBACK = env("TTS_FALLBACK", "edge")            # edge | empty to disable
 EDGE_VOICE_HI = env("EDGE_VOICE_HI", "hi-IN-SwaraNeural")
 EDGE_VOICE_EN = env("EDGE_VOICE_EN", "en-IN-NeerjaNeural")
 ELEVENLABS_API_KEY = env("ELEVENLABS_API_KEY")
@@ -61,4 +66,34 @@ FPS = 24
 def load_brand() -> dict:
     """Section A inputs: brand kit, tone, strategy. Edit brand/brand.json."""
     with open(BRAND_DIR / "brand.json", encoding="utf-8") as f:
-        return json.load(f)
+        brand = json.load(f)
+
+    fonts = brand["fonts"]
+    fallback = Path(fonts.get("fallback", ""))
+    if not fallback.is_absolute():
+        fallback = ROOT / fallback
+    if fallback.is_file():
+        fonts["fallback"] = str(fallback)
+        return brand
+
+    for candidate in _system_font_candidates():
+        if candidate.is_file():
+            fonts["fallback"] = str(candidate)
+            return brand
+
+    raise FileNotFoundError(
+        f"No usable fallback font found; configured path was {fonts.get('fallback')!r}"
+    )
+
+
+def _system_font_candidates() -> list[Path]:
+    if os.name == "nt":
+        fonts_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+        return [fonts_dir / "Nirmala.ttf", fonts_dir / "arial.ttf"]
+    if sys.platform == "darwin":
+        fonts_dir = Path("/System/Library/Fonts/Supplemental")
+        return [fonts_dir / "Arial.ttf", fonts_dir / "Arial Unicode.ttf"]
+    return [
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    ]

@@ -8,6 +8,7 @@ import asyncio
 import base64
 import re
 import subprocess
+import time
 from pathlib import Path
 
 import httpx
@@ -26,26 +27,43 @@ def provider() -> str:
     return config.TTS_PROVIDER
 
 
-def keeps_tags() -> bool:
+def keeps_tags(p: str | None = None) -> bool:
     """Only ElevenLabs v3/v4 performs [emotion] tags; everyone else must not read them aloud."""
-    return provider() == "elevenlabs" and config.ELEVENLABS_MODEL.startswith(("eleven_v3", "eleven_v4"))
+    return (p or provider()) == "elevenlabs" and config.ELEVENLABS_MODEL.startswith(("eleven_v3", "eleven_v4"))
 
 
-def speak(text: str, language: str, out_path: Path) -> Path:
-    p = provider()
-    if not keeps_tags():
-        text = strip_tags(text)
-    if p == "sarvam":
-        _sarvam(text, language, out_path)
-    elif p == "elevenlabs":
-        _eleven(text, language, out_path)
-    elif p == "edge":
-        _edge(text, language, out_path)
-    else:
-        _silent(text, out_path)
-    if not out_path.is_file() or out_path.stat().st_size < 500:
-        raise RuntimeError(f"Voice provider '{p}' returned no audio (check internet / API key)")
-    return out_path
+def chain() -> list[str]:
+    """Main voice provider first, then TTS_FALLBACK (e.g. sarvam,edge) so a voice is always produced."""
+    return list(dict.fromkeys([provider()] + [x.strip() for x in env("TTS_FALLBACK", "edge").split(",") if x.strip()]))
+
+
+def speak(text: str, language: str, out_path: Path, voice_id: str = "") -> str:
+    """Speak text into out_path. Returns the provider that succeeded.
+    voice_id = ElevenLabs voice of the speaking character (empty = ELEVENLABS_VOICE_ID)."""
+    errors = []
+    for p in chain():
+        t = text if keeps_tags(p) else strip_tags(text)
+        for attempt in range(2):
+            try:
+                out_path.unlink(missing_ok=True)
+                if p == "sarvam":
+                    _sarvam(t, language, out_path)
+                elif p == "elevenlabs":
+                    _eleven(t, language, out_path, voice_id)
+                elif p == "edge":
+                    _edge(t, language, out_path)
+                else:
+                    _silent(t, out_path)
+                if out_path.is_file() and out_path.stat().st_size > 500:
+                    return p
+                raise RuntimeError("returned no audio")
+            except Exception as e:
+                msg = str(e)[:200]
+                if attempt == 1 or any(k in msg for k in ("not set", "HTTP 401", "HTTP 403", "quota")):
+                    errors.append(f"{p}: {msg}")
+                    break
+                time.sleep(4)
+    raise RuntimeError("All voice providers failed — " + " | ".join(errors))
 
 
 def _sarvam(text, language, out_path):
@@ -70,10 +88,10 @@ def _sarvam(text, language, out_path):
     out_path.write_bytes(base64.b64decode(r.json()["audios"][0]))
 
 
-def _eleven(text, language, out_path):
+def _eleven(text, language, out_path, voice_id=""):
     if not config.ELEVENLABS_API_KEY:
         raise RuntimeError("ELEVENLABS_API_KEY is not set in .env")
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{config.ELEVENLABS_VOICE_ID}"
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id or config.ELEVENLABS_VOICE_ID}"
     body = {"text": text, "model_id": config.ELEVENLABS_MODEL,
             "voice_settings": {"stability": float(env("ELEVENLABS_STABILITY", "0.5")),
                                "similarity_boost": float(env("ELEVENLABS_SIMILARITY", "0.8"))}}

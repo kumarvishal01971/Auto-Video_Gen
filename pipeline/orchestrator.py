@@ -8,7 +8,7 @@ import time
 import traceback
 
 import config
-from pipeline import assemble, media, script, store
+from pipeline import assemble, budget, media, script, store, styles
 
 _q: "queue.Queue[tuple]" = queue.Queue()
 MAX_REGEN = 2
@@ -27,14 +27,29 @@ def enqueue(job_id: str):
     _q.put((job_id,))
 
 
+AUTO_RETRIES = 2   # a crashed step is retried automatically (finished shots are reused, not paid again)
+
+
 def _loop():
     while True:
         (job_id,) = _q.get()
         try:
             advance(job_id)
+        except budget.BudgetExceeded as e:
+            store.set_status(job_id, "failed", str(e))
+            store.log(job_id, f"⏸ {e}")
         except Exception as e:
-            store.set_status(job_id, "failed", f"{type(e).__name__}: {e}")
+            j = store.get(job_id) or {}
+            state = j.get("state") or {}
+            n = state.get("auto_retries", 0)
             store.log(job_id, traceback.format_exc()[-1500:])
+            if n < AUTO_RETRIES and j.get("status") not in store.WAITING:
+                state["auto_retries"] = n + 1
+                store.update(job_id, state=state)
+                store.log(job_id, f"↻ Step failed ({type(e).__name__}: {str(e)[:200]}) — automatic retry {n + 1}/{AUTO_RETRIES} in 60 s")
+                threading.Timer(60, enqueue, args=(job_id,)).start()
+                continue
+            store.set_status(job_id, "failed", f"{type(e).__name__}: {e}")
 
 
 def advance(job_id: str):
@@ -51,6 +66,14 @@ def advance(job_id: str):
         store.set_status(job_id, "await_script")
         return
 
+    if st == "voice":   # voice comes BEFORE pictures: talking characters are animated to the real voice
+        sb = media.voice(job_id, sb)
+        nxt = state.pop("after_voice", None) or (
+            "assembly" if all(s.get("clip") for s in sb["shots"]) else "keyframes")
+        store.update(job_id, storyboard=sb, state=state)
+        st = nxt
+        store.set_status(job_id, st)
+
     if st == "keyframes":
         only = state.pop("redo_shots", None)
         sb = media.keyframes(job_id, sb, only, state.pop("shot_notes", None))
@@ -59,8 +82,8 @@ def advance(job_id: str):
         return
 
     if st == "clips":
-        sb = media.clips(job_id, sb)
-        store.update(job_id, storyboard=sb)
+        sb = media.clips(job_id, sb, force=state.pop("force_clips", False))
+        store.update(job_id, storyboard=sb, state=state)
         st = "qc"
         store.set_status(job_id, "qc")
 
@@ -74,22 +97,18 @@ def advance(job_id: str):
                 if s["id"] in failed:
                     s["seed"] += 101
             sub = {**sb, "shots": [s for s in sb["shots"] if s["id"] in failed]}
-            media.clips(job_id, sub)
+            media.clips(job_id, sub, force=True)
         if failed:
             store.log(job_id, f"⚠ Shots {failed} still failed QC — using animated keyframe instead. Check at final approval.")
-        store.update(job_id, storyboard=sb)
-        st = "voice"
-        store.set_status(job_id, "voice")
-
-    if st == "voice":
-        sb = media.voice(job_id, sb)
         store.update(job_id, storyboard=sb)
         st = "assembly"
         store.set_status(job_id, "assembly")
 
     if st == "assembly":
         sb = assemble.assemble(job_id, sb)
-        store.update(job_id, storyboard=sb)
+        sb["cost_usd"] = round(budget.job_spent(job_id), 2)
+        state.pop("auto_retries", None)
+        store.update(job_id, storyboard=sb, state=state)
         store.set_status(job_id, "await_final")
         return
 
@@ -111,7 +130,7 @@ def script_decision(job_id: str, approve: bool, comments: str = "", edited: dict
         store.log(job_id, f"Storyboard edited by {who or 'reviewer'}")
     if approve:
         store.log(job_id, f"✔ Script approved by {who or 'reviewer'}")
-        _go(job_id, "keyframes")
+        _go(job_id, "voice", after_voice="keyframes")
     else:
         store.log(job_id, f"✘ Script rejected by {who or 'reviewer'}: {comments}")
         _go(job_id, "scripting", comments=comments)
@@ -135,7 +154,12 @@ def final_decision(job_id: str, approve: bool, rerun_from: str = "", comments: s
     store.log(job_id, f"↺ Changes requested by {who or 'reviewer'} (from {rerun_from}): {comments}")
     target = {"script": "scripting", "keyframes": "keyframes", "clips": "clips", "voice": "voice",
               "assembly": "assembly"}[rerun_from]
+    sb = store.get(job_id)["storyboard"] or {}
     extra = {"comments": comments} if rerun_from == "script" else {}
+    if rerun_from == "voice":   # talking characters must be re-animated to the new voice
+        extra["after_voice"] = "clips" if styles.talking(sb.get("style")) else "assembly"
+    if rerun_from == "clips":
+        extra["force_clips"] = True
     _go(job_id, target, **extra)
 
 

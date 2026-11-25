@@ -130,3 +130,25 @@ def _placeholder(prompt, w, h, seed, label=""):
 
 _PROVIDERS = {"placeholder": _placeholder, "pollinations": _pollinations, "cloudflare": _cloudflare,
               "huggingface": _huggingface, "fal": _fal}
+
+
+# ---------- character-consistent keyframes ----------
+def generate_ref(prompt: str, refs: list, width: int, height: int, seed: int, label: str = "") -> tuple[bytes, bool]:
+    """Draw the shot using reference image(s) (character sheet / cast portrait) so the character
+    looks the same in every shot. Returns (jpeg, used_reference). Falls back to the normal chain."""
+    from pipeline.providers.falq import FalError, run, upload
+
+    model = env("REF_IMAGE_MODEL", "fal-ai/nano-banana/edit")
+    if config.FAL_KEY and refs:
+        try:
+            res = run(model, {
+                "prompt": prompt[:3000], "image_urls": [upload(p) for p in refs][:4], "num_images": 1,
+                "aspect_ratio": "9:16" if height > width else "16:9", "output_format": "jpeg", "seed": seed,
+            }, timeout_s=300)
+            return _to_jpeg(httpx.get(res["images"][0]["url"], timeout=120).content, width, height), True
+        except FalError as e:
+            if e.fatal:
+                raise
+        except Exception:
+            pass
+    return generate(prompt, width, height, seed, label), False

@@ -2,7 +2,10 @@
 hf_space – FREE real AI motion: Wan 2.2 running on a public Hugging Face ZeroGPU Space.
            Uses your free daily GPU allowance (HF_TOKEN). When it runs out, shots fall back to kenburns.
 fal_wan  – paid, reliable Wan 2.2 image-to-video on fal.ai (needs FAL_KEY)
-kenburns – free, offline: smooth zoom/pan on the still (not real motion)"""
+kenburns – free, offline: smooth zoom/pan on the still (not real motion)
+talking() – TALKING CHARACTERS: LTX audio-to-video. The character's face, lips and body are animated to the
+           real voice clip (lip-sync + emotion). Tries TALK_MODELS in order, then plain motion, then zoom/pan,
+           so a shot is ALWAYS produced."""
 import shutil
 import subprocess
 from pathlib import Path
@@ -124,3 +127,60 @@ def _fal_wan(image_path, motion_prompt, out_path, seed):
         raise RuntimeError(f"No video in fal response: {str(res)[:300]}")
     out_path.write_bytes(httpx.get(url, timeout=300).content)
     return out_path
+
+
+# ---------- talking characters (audio-to-video, lip-sync) ----------
+TALK_DEFAULT = "fal-ai/ltx-2-19b/distilled/audio-to-video,fal-ai/ltx-2-19b/audio-to-video"
+
+
+def _talk_payload(model: str, img_url: str, audio_url: str, prompt: str, seed: int) -> dict:
+    if model.startswith("lightricks/ltx-2.5"):
+        return {"audio_url": audio_url, "image_url": img_url, "prompt": prompt, "aspect_ratio": "9:16"}
+    return {"prompt": prompt, "audio_url": audio_url, "image_url": img_url, "match_audio_length": True,
+            "video_size": "auto", "fps": 25, "seed": int(seed) % 2147483647, "audio_strength": 1.0,
+            "image_strength": 1.0, "enable_prompt_expansion": False, "video_quality": "high"}
+
+
+def talking(image_path: Path, audio_path: Path, prompt: str, out_path: Path, seed: int, seconds: float,
+            budget_check=None, on_cost=None, log=print) -> str:
+    """Returns how the shot was made: the model id (lip-synced), 'motion' or 'zoompan' (fallbacks)."""
+    from pipeline.providers.falq import FalError, download, run, upload
+
+    models = [m.strip() for m in env("TALK_MODELS", TALK_DEFAULT).split(",") if m.strip()]
+    if config.FAL_KEY and models:
+        try:
+            img_url, audio_url = upload(image_path), upload(audio_path)
+        except FalError as e:
+            log(f"⚠ upload failed: {e}")
+            models = []
+        for m in models:
+            if m.startswith("lightricks/ltx-2.5") and not 2.0 <= seconds <= 20.0:
+                continue
+            from pipeline import budget
+            est = budget.estimate(m, seconds)
+            if budget_check:
+                budget_check(est, m)          # raises BudgetExceeded → job pauses, nothing wasted
+            try:
+                res = run(m, _talk_payload(m, img_url, audio_url, prompt, seed), timeout_s=900)
+                url = (res.get("video") or {}).get("url")
+                if not url:
+                    raise FalError(f"no video in response: {str(res)[:200]}")
+                download(url, out_path)
+                if on_cost:
+                    on_cost(m, est)
+                return m
+            except FalError as e:
+                log(f"⚠ {m.split('/')[-2] if '/' in m else m} failed: {str(e)[:160]}")
+                if e.fatal:
+                    break
+            except Exception as e:  # never let one model stop the video
+                log(f"⚠ {m} failed: {str(e)[:160]}")
+    # fallback 1: real motion without lip-sync; fallback 2: zoom/pan — the shot is never missing
+    if is_ai():
+        try:
+            generate(image_path, prompt, max(5.0, seconds), out_path, seed)
+            return "motion"
+        except Exception as e:
+            log(f"⚠ motion fallback failed: {str(e)[:160]}")
+    kenburns(image_path, max(2.0, seconds), out_path, seed)
+    return "zoompan"

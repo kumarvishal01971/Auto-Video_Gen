@@ -208,15 +208,17 @@ def usage(request: Request, user=Depends(auth)):
     clip_rate = float(config.env("COST_PER_CLIP_USD", "0.10" if config.VIDEO_PROVIDER == "fal_wan" else "0"))
     img_rate = float(config.env("COST_PER_IMAGE_USD", "0.003" if config.IMAGE_PROVIDER == "fal" else "0"))
     inr = float(config.env("USD_INR", "88"))
+    from pipeline import budget
+    ledger = budget.monthly()   # real recorded spend of paid calls
     rows = []
     for k in sorted(months, reverse=True):
         m = months[k]
         m["month"] = time.strftime("%b %Y", time.strptime(k, "%Y%m"))
-        m["est_inr"] = round((m["clips"] * clip_rate + m["images"] * img_rate) * inr)
+        m["est_inr"] = round((ledger.get(k) or (m["clips"] * clip_rate + m["images"] * img_rate)) * inr)
         m["per_video"] = round(m["est_inr"] / m["published"]) if m["published"] else None
         rows.append(m)
     return page(request, "usage.html", "usage", _jobs=jobs, rows=rows, clip_rate=clip_rate, img_rate=img_rate,
-                inr=inr)
+                inr=inr, cap=budget.cap(), spent=round(budget.spent(), 2))
 
 
 @app.get("/brand", response_class=HTMLResponse)
